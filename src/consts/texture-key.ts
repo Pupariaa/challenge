@@ -58,4 +58,5 @@ export enum IconsKey {
   Chevron,
   Bump,
   Coin,
+  Language,
 }
