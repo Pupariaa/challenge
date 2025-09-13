@@ -4,6 +4,7 @@ import { CINEMATIC_FRAME_HEIGHT } from '../consts/globals'
 import { GameMode } from '../consts/level'
 import SceneKey from '../consts/scene-key'
 import TextureKey, { IconsKey } from '../consts/texture-key'
+import { getTranslation } from '../consts/translations'
 import IconButton from '../objects/ui/icon-button'
 import Panel from '../objects/ui/panel'
 import { getLevelInfo, getLevelTotalCoins, updateLevelInfo } from '../utils/level'
@@ -96,7 +97,7 @@ export default class HUDScene extends Phaser.Scene {
 
     const panelPauseBg = new Panel(this, centerX, centerY, panelWidth, panelHeight)
     const panelTxt = this.add
-      .text(width / 2, centerY + 40, '- Pause -', {
+      .text(width / 2, centerY + 40, `- ${getTranslation('pause')} -`, {
         fontFamily: TextureKey.FontHeading,
         fontSize: '64px',
         color: '#181425',
@@ -182,7 +183,7 @@ export default class HUDScene extends Phaser.Scene {
       this.startTime += this.pauseTime
     } else {
       this.scene.pause(SceneKey.Game)
-      ;(this.scene.get(SceneKey.Game) as GameScene).resetPointers()
+        ; (this.scene.get(SceneKey.Game) as GameScene).resetPointers()
       this.pauseTime = this.time.now
     }
 
