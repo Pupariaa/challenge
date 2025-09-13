@@ -56,7 +56,7 @@ export default class LevelsScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     new IconButton(this, 80, 80, IconsKey.Back, () => this.goToScreen(SceneKey.Intro))
-    new IconButton(this, 200, 80, IconsKey.Edit, this.goToLanguage)
+    new IconButton(this, 200, 80, IconsKey.Language, this.goToLanguage)
 
     new TextButton(this, width / 2, height - 120, getTranslation('levelEditor'), () => {
       this.goToScreen(SceneKey.Game, { level: customLevel })
