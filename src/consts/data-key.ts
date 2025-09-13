@@ -8,6 +8,7 @@ enum DataKey {
   IsCustomLevelRun = 'isCustomLevelRun',
   UnlockedLevels = 'unlockedLevels',
   CurrentWorld = 'currentWorld',
+  Language = 'language',
 }
 
 export default DataKey
