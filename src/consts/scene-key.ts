@@ -6,6 +6,7 @@ enum SceneKey {
   Audio = 'audio',
   Intro = 'intro',
   Settings = 'settings',
+  Language = 'language',
   Levels = 'levels',
   HUD = 'hud',
   Editor = 'editor',
