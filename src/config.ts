@@ -5,6 +5,7 @@ import IntroScene from './scenes/intro-scene'
 import TransitionScene from './scenes/transition-scene'
 import AudioScene from './scenes/audio-scene'
 import SettingsScene from './scenes/settings-scene'
+import LanguageScene from './scenes/language-scene'
 import LevelsScene from './scenes/levels-scene'
 import HUDScene from './scenes/hud-scene'
 import EditorScene from './scenes/editor-scene'
@@ -54,5 +55,6 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     TransitionScene,
     AudioScene,
     SettingsScene,
+    LanguageScene,
   ],
 }
