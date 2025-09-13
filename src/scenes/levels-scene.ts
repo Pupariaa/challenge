@@ -8,6 +8,7 @@ import TextureKey, { IconsKey } from '../consts/texture-key'
 import IconButton from '../objects/ui/icon-button'
 import TextButton from '../objects/ui/text-button'
 import { getCurrentWorld, getLevelInfo, getLevelTotalCoins, setCurrentWorld } from '../utils/level'
+import { getCurrentLanguage, setLanguage, Language, getTranslation } from '../consts/translations'
 import { stringifyTime } from '../utils/time'
 import { transitionEventsEmitter } from '../utils/transition'
 import AudioScene from './audio-scene'
@@ -36,7 +37,7 @@ export default class LevelsScene extends Phaser.Scene {
     }
     this.currentWorld = targetWorld
     this.theme = WORLD_THEMES[this.currentWorld - 1]
-    ;(this.scene.get(SceneKey.Background) as BackgroundScene).changeBackground(this.theme)
+      ; (this.scene.get(SceneKey.Background) as BackgroundScene).changeBackground(this.theme)
   }
 
   create() {
@@ -47,7 +48,7 @@ export default class LevelsScene extends Phaser.Scene {
     this.registry.set(DataKey.CoinsCollected, false)
 
     this.add
-      .text(width / 2, 24, `MONDE ${this.currentWorld}`, {
+      .text(width / 2, 24, `${getTranslation('levels')} ${this.currentWorld}`, {
         fontFamily: TextureKey.FontHeading,
         fontSize: '96px',
         color: '#' + this.theme.button.toString(16).padStart(6, '0'),
@@ -55,7 +56,9 @@ export default class LevelsScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     new IconButton(this, 80, 80, IconsKey.Back, () => this.goToScreen(SceneKey.Intro))
-    new TextButton(this, width / 2, height - 120, 'Éditeur de niveaux', () => {
+    new IconButton(this, 200, 80, IconsKey.Edit, this.goToLanguage)
+
+    new TextButton(this, width / 2, height - 120, getTranslation('levelEditor'), () => {
       this.goToScreen(SceneKey.Game, { level: customLevel })
     })
 
@@ -101,7 +104,7 @@ export default class LevelsScene extends Phaser.Scene {
       if (levelInfo) {
         button.setInteractive()
         button.on('pointerdown', () => {
-          ;(this.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
+          ; (this.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
           this.goToScreen(SceneKey.Game, { number: level })
         })
       } else {
@@ -141,7 +144,7 @@ export default class LevelsScene extends Phaser.Scene {
     transitionEventsEmitter.once(
       EventKey.TransitionEnd,
       () => {
-        ;(this.scene.get(SceneKey.Background) as BackgroundScene).reset()
+        ; (this.scene.get(SceneKey.Background) as BackgroundScene).reset()
         this.scene.start(screen, params)
       },
       this
@@ -152,5 +155,10 @@ export default class LevelsScene extends Phaser.Scene {
     const data: LevelsSceneProps = { world }
     transitionEventsEmitter.emit(EventKey.TransitionStart)
     transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.restart(data))
+  }
+
+  goToLanguage() {
+    transitionEventsEmitter.emit(EventKey.TransitionStart)
+    transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.start(SceneKey.Language), this)
   }
 }
