@@ -1,6 +1,7 @@
 import AudioKey from '../consts/audio-key'
 import SceneKey from '../consts/scene-key'
 import TextureKey from '../consts/texture-key'
+import { getTranslation } from '../consts/translations'
 
 export default class PreloaderScene extends Phaser.Scene {
   private progressBar!: Phaser.GameObjects.Graphics
@@ -64,7 +65,8 @@ export default class PreloaderScene extends Phaser.Scene {
     graphics.fillCircle(180, 100, 60)
     graphics.fillCircle(240, 60, 60)
     graphics.generateTexture(TextureKey.Cloud, 300, 240)
-    graphics.destroy()
+    graphics.clear()
+
 
     this.load.spritesheet(TextureKey.Icons, 'icons.png', {
       frameWidth: 80,
@@ -104,7 +106,7 @@ export default class PreloaderScene extends Phaser.Scene {
 
     const { width, height } = this.scale
     this.add
-      .text(width / 2, height / 2 - 48, 'Chargement...', {
+      .text(width / 2, height / 2 - 48, getTranslation('loading'), {
         fontFamily: TextureKey.FontHeading,
         fontSize: '48px',
         color: '#262b44',
