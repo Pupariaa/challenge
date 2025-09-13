@@ -21,6 +21,14 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 1920,
     height: 1080,
+    min: {
+      width: 320,
+      height: 180,
+    },
+    max: {
+      width: 1920,
+      height: 1080,
+    },
   },
   physics: {
     default: 'arcade',
