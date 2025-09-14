@@ -12,12 +12,13 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const isProduction = process.env.NODE_ENV === 'production'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const SCORE_SECRET = process.env.SCORE_SECRET || crypto.randomBytes(32).toString('hex')
 const port = isProduction ? 25586 : 8080
 
-const isProduction = process.env.NODE_ENV === 'production'
+
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET
