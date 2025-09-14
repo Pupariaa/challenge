@@ -1,4 +1,4 @@
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import {
   PLAYER_BOUNCE_OFF_VELOCITY,
   PLAYER_BUFFERING_TIME,
@@ -60,7 +60,7 @@ export default class Player extends Phaser.GameObjects.Container {
     scene.physics.world.enable(this)
     scene.add.existing(this)
 
-    // Particules du joueur lors du saut
+
     this.emitter = scene.add.particles(0, 0, TextureKey.ParticleJump, {
       lifespan: 300,
       speedX: { min: -200, max: 200 },
@@ -83,7 +83,7 @@ export default class Player extends Phaser.GameObjects.Container {
     }
 
     if (playerMode === PlayerMode.Platformer) {
-      // Détection de chute pour coyote time
+
       if (this.playerWasStanding && !body.blocked.down) {
         this.playerWasStanding = false
         this.fallStartTime = this.scene.time.now
@@ -112,12 +112,12 @@ export default class Player extends Phaser.GameObjects.Container {
         }
       }
 
-      // Jump buffering
+
       if (this.isUpKeyPressed && body.blocked.down && time - this.jumpBufferingTime < PLAYER_BUFFERING_TIME) {
         this.jump()
       }
 
-      // Gérer le saut progressif
+
       if (this.isJumping && this.isUpKeyPressed) {
         let pressDuration = time - this.jumpStartTime
         if (pressDuration > PLAYER_MAX_JUMP_TIME) {
@@ -173,9 +173,9 @@ export default class Player extends Phaser.GameObjects.Container {
   }
 
   flappyJump() {
-    ;(this.scene as GameScene).audioManager.playSfx(AudioKey.SfxJump)
+    ; (this.scene as GameScene).audioManager.playSfx(AudioKey.SfxJump)
     this.emitter.emitParticleAt(this.x, this.y + 24)
-    ;(this.body as Phaser.Physics.Arcade.Body).setVelocityY(PLAYER_FLAPPY_VELOCITY)
+      ; (this.body as Phaser.Physics.Arcade.Body).setVelocityY(PLAYER_FLAPPY_VELOCITY)
   }
 
   jump() {
@@ -204,7 +204,7 @@ export default class Player extends Phaser.GameObjects.Container {
       this.isJumping = true
       this.jumpStartTime = this.scene.time.now
       this.completePlayerTweens()
-      ;(this.scene as GameScene).audioManager.playSfx(AudioKey.SfxJump)
+        ; (this.scene as GameScene).audioManager.playSfx(AudioKey.SfxJump)
 
       if (this.jumpCount === 1) {
         this.scene.tweens.add({
@@ -238,18 +238,18 @@ export default class Player extends Phaser.GameObjects.Container {
   }
 
   jumpOffObstacle(velocityY: number = PLAYER_BOUNCE_OFF_VELOCITY) {
-    ;(this.body as Phaser.Physics.Arcade.Body).setVelocityY(-velocityY)
+    ; (this.body as Phaser.Physics.Arcade.Body).setVelocityY(-velocityY)
     this.jumpCount = 1
     this.isJumping = true
     this.jumpStartTime = this.scene.time.now
     this.isUpKeyPressed = false
     this.playerWasStanding = true
-    ;(this.scene as GameScene).audioManager.playSfx(AudioKey.SfxHit)
+      ; (this.scene as GameScene).audioManager.playSfx(AudioKey.SfxHit)
   }
 
   die() {
     this._isDead = true
-    ;(this.body as Phaser.Physics.Arcade.Body).setVelocity(PLAYER_DEATH_JUMP_X * this.dir * -1, PLAYER_DEATH_JUMP_Y)
+      ; (this.body as Phaser.Physics.Arcade.Body).setVelocity(PLAYER_DEATH_JUMP_X * this.dir * -1, PLAYER_DEATH_JUMP_Y)
   }
 
   teleportTo(target: Phaser.GameObjects.Arc, onComplete: Function) {

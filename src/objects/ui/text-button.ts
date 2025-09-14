@@ -1,4 +1,4 @@
-import AudioKey from '../../consts/audio-key'
+import { AudioKey } from '../../consts/audio-key'
 import SceneKey from '../../consts/scene-key'
 import TextureKey from '../../consts/texture-key'
 import AudioScene from '../../scenes/audio-scene'
@@ -46,7 +46,7 @@ export default class TextButton extends Phaser.GameObjects.Container {
       (...args: any[]) => {
         this.onHover()
         onPointerDown.call(scene, ...args)
-        ;(this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
+          ; (this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
       },
       this
     )

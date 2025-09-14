@@ -59,4 +59,8 @@ export enum IconsKey {
   Bump,
   Coin,
   Language,
+  Discord,
+  DiscordLogged,
+  Leaderboard,
+  Github
 }

@@ -8,6 +8,7 @@ import { getTranslation } from '../consts/translations'
 import IconButton from '../objects/ui/icon-button'
 import Panel from '../objects/ui/panel'
 import { getLevelInfo, getLevelTotalCoins, updateLevelInfo } from '../utils/level'
+import { authService } from '../services/auth-service'
 import { stringifyTime } from '../utils/time'
 import { transitionEventsEmitter } from '../utils/transition'
 import GameScene from './game-scene'
@@ -24,6 +25,9 @@ export default class HUDScene extends Phaser.Scene {
   private timerStarted = false
   private startTime = 0
   private pauseTime = 0
+  private userInfoText!: Phaser.GameObjects.Text
+  private userInfoContainer!: Phaser.GameObjects.Container
+  private speedrunUUID: string = ''
 
   constructor() {
     super({ key: SceneKey.HUD })
@@ -55,7 +59,7 @@ export default class HUDScene extends Phaser.Scene {
       btnPause.disableInteractive().setVisible(false)
     }
 
-    // Pièces
+
     this.coinsCollected = (this.registry.get(DataKey.CoinsCollected) || []).reduce(
       (acc: number, val: number) => acc + val,
       0
@@ -80,12 +84,44 @@ export default class HUDScene extends Phaser.Scene {
     const timerContainer = this.add.container(0, 0, [timerBg, this.timerText])
     timerContainer.setAlpha(isSpeedrunMode ? 1 : 0)
 
+
+    if (isSpeedrunMode) {
+
+      this.speedrunUUID = this.generateUUID()
+      const startDate = new Date().toLocaleString('fr-FR')
+      const userInfoBg = this.add.rectangle(0, 200, 320, 100, 0x262b44, 0.5).setOrigin(0)
+
+
+      const currentLevel = this.registry.get('currentLevel') || 1
+      const world = Math.ceil(currentLevel / 5) // 5 niveaux par monde
+      const levelInWorld = ((currentLevel - 1) % 5) + 1
+
+      let infoText = `World ${world} - Level ${levelInWorld}\nSession: Non authentifiée\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
+
+
+      if (authService.isAuthenticated()) {
+        const user = authService.getCurrentUser()
+        if (user) {
+          infoText = `World ${world} - Level ${levelInWorld}\nPlayer: ${user.username}\nID: ${user.id}\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
+        }
+      }
+
+      this.userInfoText = this.add.text(20, 250, infoText, {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: '#ffffff',
+        lineSpacing: 3
+      }).setOrigin(0, 0.5)
+      this.userInfoContainer = this.add.container(0, 0, [userInfoBg, this.userInfoText])
+      this.userInfoContainer.setAlpha(1)
+    }
+
     gameScene.events.on(EventKey.StartTimer, this.startTimer, this)
     gameScene.events.on(EventKey.StopTimer, this.stopTimer, this)
     gameScene.events.on(EventKey.LevelEnd, this.handleLevelEnd, this)
     gameScene.events.on(EventKey.ToggleCinematicFrames, this.toggleCinematicFrames, this)
 
-    // Panel
+
     const [panelWidth, panelHeight] = [640, 360]
     const [centerX, centerY] = [(width - panelWidth) / 2, (height - panelHeight) / 2]
 
@@ -115,9 +151,23 @@ export default class HUDScene extends Phaser.Scene {
     const btnLevels = new IconButton(this, width / 2 - 120, height / 2 + 40, IconsKey.Levels, this.goToLevels)
 
     this.panelPause.add([panelOverlay, panelPauseBg, panelTxt, btnPlay, btnRestart, btnLevels])
-    this.HUDItems = this.add.container(0, 0, [btnPause, coin, timerContainer, this.coinsText, mobileCursorsContainer])
+
+
+    const hudItems = [btnPause, coin, timerContainer, this.coinsText, mobileCursorsContainer]
+    if (this.userInfoContainer) {
+      hudItems.push(this.userInfoContainer)
+    }
+    this.HUDItems = this.add.container(0, 0, hudItems)
 
     this.events.once('shutdown', this.handleShutdown, this)
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
   }
 
   toggleCinematicFrames() {
@@ -209,10 +259,25 @@ export default class HUDScene extends Phaser.Scene {
     const levelTotalCoins = getLevelTotalCoins(currentLevel)
     const previousMaxCoins = levelInfo.coins || 0
 
+
+    let speedrunData = undefined
+    if (this.registry.get(DataKey.GameMode) === GameMode.Speedrun) {
+      speedrunData = this.registry.get('currentSpeedrunData')
+      if (speedrunData) {
+
+        if (this.speedrunUUID) {
+          speedrunData.uuid = this.speedrunUUID
+        }
+
+        this.registry.remove('currentSpeedrunData')
+      }
+    }
+
     updateLevelInfo(currentLevel, {
       ...(this.registry.get(DataKey.GameMode) === GameMode.Speedrun && newTime < previousBestTime && { time: newTime }),
       ...(this.coinsCollected > previousMaxCoins && { coins: this.coinsCollected }),
       ...(this.coinsCollected === levelTotalCoins && !startedFromCheckpoint && { shinyCoin: true }),
+      speedrunData
     })
 
     this.startTime = 0

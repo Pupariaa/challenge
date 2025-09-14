@@ -1,4 +1,4 @@
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import EventKey from '../consts/event-key'
 import { ENEMY_VELOCITY } from '../consts/globals'
 import SceneKey from '../consts/scene-key'
@@ -43,7 +43,7 @@ export default class Boss extends Phaser.GameObjects.Rectangle {
     if (this.canShakeScreen && body.blocked.down) {
       this.canShakeScreen = false
       this.scene.cameras.main.shake(600, 0.01)
-      ;(this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxShake)
+        ; (this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxShake)
     }
 
     if (!this.isMoving) return

@@ -1,4 +1,4 @@
-enum AudioKey {
+export enum AudioKey {
   Music = 'music',
   SfxJump = 'sfxJump',
   SfxHit = 'sfxHit',
@@ -10,5 +10,3 @@ enum AudioKey {
   SfxButton = 'sfxButton',
   SfxShake = 'sfxShake',
 }
-
-export default AudioKey

@@ -358,7 +358,6 @@ export default class EditorScene extends Phaser.Scene {
 
       this.events.emit(EventKey.EditorImport, parsedObject);
     } catch {
-      console.log('Niveau non valide');
     }
   }
 

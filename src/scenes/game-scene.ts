@@ -1,4 +1,6 @@
 import AnalyticsKey from '../consts/analytics-key'
+import { speedrunRecorder } from '../services/speedrun-recorder'
+import { authService } from '../services/auth-service'
 import {
   BOSS_BOUNCE_VELOCITY,
   BUMP_OFF_VELOCITY,
@@ -38,7 +40,7 @@ import { isTouchingFromAbove } from '../utils/helpers'
 import AudioScene from './audio-scene'
 import DataKey from '../consts/data-key'
 import EventKey from '../consts/event-key'
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import Player from '../objects/player'
 import Platform from '../objects/platform'
 import OneWayPlatform from '../objects/one-way-platform'
@@ -199,6 +201,11 @@ export default class GameScene extends Phaser.Scene {
     this.themeColors = THEME_DATA[this.theme]
     this.registry.set(DataKey.IsCustomLevel, this.isCustomLevel)
     this.registry.set(DataKey.IsCustomLevelRun, this.isCustomLevelRun)
+
+
+    if (this.currentLevel) {
+      this.registry.set('currentLevel', this.currentLevel)
+    }
   }
 
   create() {
@@ -212,8 +219,23 @@ export default class GameScene extends Phaser.Scene {
     this.startedFromCheckpoint = this.isCheckpointActive
     const coinsCollected = this.registry.get(DataKey.CoinsCollected) || []
     this.coinsCollected = [...coinsCollected]
-    this.isSpeedrunMode = this.registry.get(DataKey.GameMode) === GameMode.Speedrun
+
+    if (authService.isAuthenticated()) {
+      const settings = authService.getSettings()
+      this.isSpeedrunMode = settings.gameMode === 'speedrun'
+    } else {
+
+      this.isSpeedrunMode = this.registry.get(DataKey.GameMode) === GameMode.Speedrun
+    }
     this._audioManager = this.scene.get(SceneKey.Audio) as AudioScene
+
+
+    this.createInfoPanel()
+
+
+    if (this.isSpeedrunMode) {
+      speedrunRecorder.startRecording()
+    }
     this.time.delayedCall(
       500,
       () => {
@@ -241,7 +263,7 @@ export default class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setAlpha(this.isCustomLevel && !this.isCustomLevelRun ? 0 : 1)
 
-    // Boss
+
     if (this.levelData.isBoss) {
       this.boss = new Boss(this)
       const { x, y, width, height } = this.levelData.bossTrigger!
@@ -249,7 +271,7 @@ export default class GameScene extends Phaser.Scene {
       this.physics.add.existing(this.bossTrigger, true)
     }
 
-    // Plateformes
+
     this.platforms = this.add.group({
       classType: Platform,
     })
@@ -260,7 +282,7 @@ export default class GameScene extends Phaser.Scene {
     this.platformsHitbox = this.physics.add.staticGroup()
     this.createPlatformsHitbox()
 
-    // Plateformes à sens unique
+
     this.oneWayPlatforms = this.physics.add.group({
       classType: OneWayPlatform,
       allowGravity: false,
@@ -275,7 +297,7 @@ export default class GameScene extends Phaser.Scene {
       allowGravity: false,
     })
 
-    // Bumps
+
     this.bumps = this.physics.add.staticGroup({
       classType: Bump,
     })
@@ -284,7 +306,7 @@ export default class GameScene extends Phaser.Scene {
       this.addBump(bumpsPos[i])
     }
 
-    // Cannons
+
     this.cannons = this.physics.add.staticGroup({
       classType: Cannon,
       runChildUpdate: true,
@@ -294,17 +316,17 @@ export default class GameScene extends Phaser.Scene {
       this.addCannon(cannonsPos[i])
     }
 
-    // Créer le téléporteur et les particules
+
     this.target = new Target(this, this.levelData.target.x, this.levelData.target.y)
 
-    // Pics
+
     this.spikes = this.physics.add.staticGroup()
     const spikesPos = this.levelData.spikes ?? []
     for (let i = 0; i < spikesPos.length; i++) {
       this.addSpikes(spikesPos[i])
     }
 
-    // Boules de lave
+
     this.lavaballs = this.physics.add.group({
       classType: LavaBall,
       runChildUpdate: true,
@@ -314,7 +336,7 @@ export default class GameScene extends Phaser.Scene {
       this.addLavaball(lavaballsPos[i])
     }
 
-    // Lave
+
     this.lava = this.physics.add.staticGroup({
       classType: Lava,
     })
@@ -333,7 +355,7 @@ export default class GameScene extends Phaser.Scene {
       this.addSpikyBall(spikyBallsPos[i])
     }
 
-    // Plateformes sensibles
+
     this.fallingBlocks = this.physics.add.staticGroup({
       classType: FallingBlock,
     })
@@ -343,14 +365,14 @@ export default class GameScene extends Phaser.Scene {
       this.addFallingBlock(fallingBlocksPos[i])
     }
 
-    // Event Blocks
+
     this.eventBlocks = this.physics.add.staticGroup()
     const eventBlocksPos = this.levelData.eventBlocks ?? []
     for (let i = 0; i < eventBlocksPos.length; i++) {
       this.addEventBlock(this.eventBlocks, eventBlocksPos[i])
     }
 
-    // Transformers
+
     this.transformers = this.physics.add.staticGroup()
     const transformersPos = this.levelData.transformers ?? []
     for (let i = 0; i < transformersPos.length; i++) {
@@ -358,7 +380,7 @@ export default class GameScene extends Phaser.Scene {
       new Transformer(this, x, y, width, height, mode, this.transformers)
     }
 
-    // Ennemis
+
     this.enemies = this.physics.add.group()
     this.enemiesStartPos = this.add.group()
     const enemiesPos = this.levelData.enemies ?? []
@@ -366,10 +388,10 @@ export default class GameScene extends Phaser.Scene {
       this.addEnemy(enemiesPos[i])
     }
 
-    // Pièces
+
     this.addCoins()
 
-    // Checkpoint
+
     if (this.levelData.checkpoint && !this.isSpeedrunMode) {
       const pole = this.add.rectangle(0, 0, 20, 240, 0xc0cbdc)
       this.checkpointFlag = this.add
@@ -380,11 +402,11 @@ export default class GameScene extends Phaser.Scene {
         this.checkpointFlag,
       ])
       this.physics.add.existing(this.checkpoint, true)
-      ;(this.checkpoint.body as Phaser.Physics.Arcade.Body).setSize(pole.width, pole.height)
-      ;(this.checkpoint.body as Phaser.Physics.Arcade.Body).setOffset(22, -88)
+        ; (this.checkpoint.body as Phaser.Physics.Arcade.Body).setSize(pole.width, pole.height)
+        ; (this.checkpoint.body as Phaser.Physics.Arcade.Body).setOffset(22, -88)
     }
 
-    // Créer le joueur
+
     const startingPos = this.isCheckpointActive
       ? { x: this.levelData.checkpoint!.x - TILE_SIZE, y: this.levelData.checkpoint!.y }
       : this.levelData.player
@@ -411,7 +433,7 @@ export default class GameScene extends Phaser.Scene {
     )
     this.physics.add.existing(this.playerShadowHitbox, true)
 
-    // Particules pièces
+
     this.coinsEmitter = this.add.particles(0, 0, TextureKey.ParticleCoin, {
       lifespan: 300,
       speed: { min: 160, max: 200 },
@@ -421,7 +443,7 @@ export default class GameScene extends Phaser.Scene {
       alpha: { start: 1, end: 0 },
     })
 
-    // Mort du joueur
+
     this.physics.add.overlap(this.player, this.spikes, this.die, undefined, this)
     this.physics.add.overlap(this.player, this.lava, this.die, undefined, this)
     this.physics.add.overlap(this.player, this.fireballs, this.die, undefined, this)
@@ -435,7 +457,7 @@ export default class GameScene extends Phaser.Scene {
       this
     )
 
-    // Ajouter la collision entre le joueur, les ennemis et le sol
+
     this.physics.add.overlap(this.platformsHitbox, this.fireballs, this.destroyFireball, undefined, this)
     this.platformsCollider = this.physics.add.collider(this.player, this.platformsHitbox)
     this.cannonsCollider = this.physics.add.collider(this.player, this.cannons)
@@ -476,7 +498,7 @@ export default class GameScene extends Phaser.Scene {
       this.events.on(EventKey.UnfreezePlayer, this.unfreezePlayer, this)
     }
 
-    // Détection checkpoint
+
     if (this.levelData.checkpoint && !this.isCheckpointActive) {
       this.checkpointTrigger = this.physics.add.overlap(
         this.player,
@@ -487,17 +509,17 @@ export default class GameScene extends Phaser.Scene {
       )
     }
 
-    // Pièces
+
     this.coinsTriggers = this.physics.add.overlap(this.player, this.coins, this.handleCoin, undefined, this)
 
-    // Detection de fin de jeu
+
     this.targetTrigger = this.physics.add.overlap(this.player, this.target, this.teleport, undefined, this)
 
-    // Suivi de la caméra
+
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
     this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
 
-    // Créer les contrôles
+
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.keys = this.input.keyboard!.addKeys('Q,D') as Keys
     this.zKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z)
@@ -508,15 +530,15 @@ export default class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keyup-SPACE', () => this.player.resetJump(), this)
     this.input.keyboard!.on('keydown-R', this.handlRestartToggle, this)
 
-    // Mobiles
+
     if (!this.sys.game.device.os.desktop) {
-      // Pointers
+
       this.input.on('pointerdown', this.handlePointerDown, this)
       this.input.on('pointermove', this.handlePointerMove, this)
       this.input.on('pointerup', this.handlePointerUp, this)
     }
 
-    // Limite horizontale du monde
+
     this.events.on('postupdate', this.checkWorldBounds, this)
 
     this.events.once('shutdown', () => {
@@ -562,7 +584,7 @@ export default class GameScene extends Phaser.Scene {
       this.scene.launch(SceneKey.HUD)
     }
 
-    // Transition
+
     this.scene.launch(SceneKey.Transition)
   }
 
@@ -578,10 +600,10 @@ export default class GameScene extends Phaser.Scene {
     const isGoingLeft = this.cursors.left.isDown || this.keys.Q.isDown || this.touchLeft
     const isGoingRight = this.cursors.right.isDown || this.keys.D.isDown || this.touchRight
 
-    // Check du premier mouvement pour déclencher le timer
+
     if (justTriggeredJump || isGoingLeft || isGoingRight) this.checkFirstMove()
 
-    // Mouvement des ennemis
+
     this.enemies
       .getChildren()
       .filter((enemy) => !enemy.getData('isDead'))
@@ -606,7 +628,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.boss?.update()
 
-    // Plateformes mobiles
+
     this.handleMovingPlatforms(time, delta)
 
     if (!this._canMove) return
@@ -620,7 +642,7 @@ export default class GameScene extends Phaser.Scene {
       justTriggeredJump,
     })
 
-    // Sortie du monde
+
     if (
       this.player.y - (this.player.body as Phaser.Physics.Arcade.Body).height / 2 >
       this.physics.world.bounds.height
@@ -863,7 +885,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   importLevel(level: DataLevel, shouldRestart = true) {
-    ;(Object.keys(this.levelData) as (keyof DataLevel)[]).forEach((key) => delete this.levelData[key])
+    ; (Object.keys(this.levelData) as (keyof DataLevel)[]).forEach((key) => delete this.levelData[key])
     const platformsCells = convertPlatformsToCells(level.platforms)
     Object.assign(this.levelData, {
       ...level,
@@ -914,12 +936,12 @@ export default class GameScene extends Phaser.Scene {
     this._canMove = true
     this.events.emit(EventKey.StartTimer)
 
-    // Analytics
+
     this.trackProgression(ProgressionEventType.Start)
   }
 
   handlePointerDown(pointer: Phaser.Input.Pointer) {
-    // Saut lors du touch sur la zone droite de l'écran
+
     if (pointer.x > 960) {
       this.checkFirstMove()
       this.player.jump()
@@ -943,7 +965,7 @@ export default class GameScene extends Phaser.Scene {
 
   freezePlayer() {
     this.events.emit(EventKey.ToggleCinematicFrames)
-    ;(this.player.body as Phaser.Physics.Arcade.Body).velocity.x = 0
+      ; (this.player.body as Phaser.Physics.Arcade.Body).velocity.x = 0
     this._canMove = false
   }
 
@@ -988,13 +1010,21 @@ export default class GameScene extends Phaser.Scene {
     ]
     this.playerShadowHitbox.x = this.player.x
     this.playerShadowHitbox.y = this.player.y + TILE_SIZE / 2
-    ;(this.playerShadowHitbox.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      ; (this.playerShadowHitbox.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
     return this.physics.overlap(this.playerShadowHitbox, platformsToCheck)
   }
 
   teleport() {
     this._canMove = false
-    ;(this.player.body as Phaser.Physics.Arcade.Body).enable = false
+      ; (this.player.body as Phaser.Physics.Arcade.Body).enable = false
+
+
+    if (this.isSpeedrunMode && speedrunRecorder.isRecordingActive()) {
+      const speedrunData = speedrunRecorder.stopRecording()
+
+      this.registry.set('currentSpeedrunData', speedrunData)
+    }
+
     this.events.emit(EventKey.LevelEnd, {
       currentLevel: this.currentLevel,
       startedFromCheckpoint: this.startedFromCheckpoint,
@@ -1005,7 +1035,7 @@ export default class GameScene extends Phaser.Scene {
       unlockLevel(this.currentLevel + 1)
     }
 
-    // Analytics
+
     this.trackProgression(ProgressionEventType.Complete)
 
     this.player.teleportTo(this.target, () => {
@@ -1043,7 +1073,7 @@ export default class GameScene extends Phaser.Scene {
     this.events.emit(EventKey.StopTimer)
     this.player.die()
 
-    // Analytics
+
     this.trackProgression(ProgressionEventType.Fail)
     this.trackDesign(AnalyticsKey.PlayerDeath)
 
@@ -1199,7 +1229,7 @@ export default class GameScene extends Phaser.Scene {
     const { x, y, points, startAt = 0 } = data
     let spikyBall
 
-    // Création d'un path follower si des points sont définis
+
     if (points) {
       spikyBall = new MovingSpikyBall(this, x, y, points, startAt)
       if (this.isCustomLevel && !this.isCustomLevelRun) {
@@ -1217,7 +1247,7 @@ export default class GameScene extends Phaser.Scene {
 
   addEnemy(data: LevelEnemy) {
     const { x, y, dir = 1, type = 1, jumps = 1 } = data
-    let enemy
+    let enemy: Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle
 
     if (type === 2) {
       enemy = this.add.sprite(x, y, TextureKey.Enemy2).setOrigin(0)
@@ -1244,15 +1274,15 @@ export default class GameScene extends Phaser.Scene {
         delay: ENEMY2_JUMP_DELAY,
         loop: true,
         callback: () => {
-          let jumpCount = enemy.getData('jumpCount') + 1
-          let dir = enemy.getData('dir')
+          let jumpCount = (enemy as Phaser.GameObjects.Sprite).getData('jumpCount') + 1
+          let dir = (enemy as Phaser.GameObjects.Sprite).getData('dir')
           if (jumpCount > jumps) {
             dir *= -1
             jumpCount = 1
           }
           body.setVelocity(246 * dir, -1040)
-          enemy.setData('jumpCount', jumpCount)
-          enemy.setData('dir', dir)
+            ; (enemy as Phaser.GameObjects.Sprite).setData('jumpCount', jumpCount)
+            ; (enemy as Phaser.GameObjects.Sprite).setData('dir', dir)
         },
       })
     }
@@ -1311,7 +1341,7 @@ export default class GameScene extends Phaser.Scene {
   handleBossCollision() {
     const hasCollidedFromAbove = isTouchingFromAbove(this.player, this.boss!)
     if (hasCollidedFromAbove && this.boss!.isHittable) {
-      // Boss hit
+
       this.boss!.hit()
       this.player.jumpOffObstacle(BOSS_BOUNCE_VELOCITY)
 
@@ -1350,7 +1380,7 @@ export default class GameScene extends Phaser.Scene {
     const hasCollidedFromAbove = isTouchingFromAbove(this.player, enemy)
     if (hasCollidedFromAbove && enemy.getData('type') === 1) {
       enemy.setData('isDead', true)
-      ;(enemy.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
+        ; (enemy.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
 
       this.tweens.add({
         targets: enemy,
@@ -1364,7 +1394,7 @@ export default class GameScene extends Phaser.Scene {
 
       this.player.jumpOffObstacle()
 
-      // Analytics
+
       this.trackDesign(AnalyticsKey.EnemyKilled)
 
       return
@@ -1421,7 +1451,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleMovingPlatforms(_: number, delta: number) {
-    // Reset du stick plateforme
+
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body
     this.stickedPlatform = this.player.stickedPlatform
     this.stickedVelocityX = 0
@@ -1446,14 +1476,14 @@ export default class GameScene extends Phaser.Scene {
           follower.t = 0
         }
 
-        // Déplacement du joueur avec la plateforme
+
         if (this.stickedPlatform === platform) {
           this.player.y += deltaY
           this.stickedVelocityX = (platform.x - previousX) / (delta / 1000)
           if (playerBody.velocity.x === 0) {
             this.player.x += deltaX
 
-            // Détection à la main des collisions
+
             if (
               this.player.x - playerBody.halfWidth < this.stickedPlatform.x ||
               this.player.x + playerBody.halfWidth > this.stickedPlatform.x
@@ -1487,5 +1517,20 @@ export default class GameScene extends Phaser.Scene {
           }
         }
       })
+  }
+
+  private createInfoPanel() {
+
+    this.add.text(1790, 1030, 'Forked by Puparia', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
+
+    this.add.text(1790, 1050, 'v1.0.22 • 14/09/2025', {
+      fontSize: '11px',
+      color: '#aaaaaa',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
   }
 }

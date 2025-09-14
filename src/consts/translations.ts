@@ -27,6 +27,16 @@ export interface Translations {
     deaths: string
     coinsCollected: string
 
+    // Leaderboard
+    leaderboard: string
+    player: string
+    score: string
+    time: string
+    date: string
+    level: string
+    noScoresYet: string
+    errorLoadingLeaderboard: string
+
     // HUD
     pause: string
     play: string
@@ -60,6 +70,14 @@ const translations: Record<Language, Translations> = {
         enemiesKilled: 'Ennemis tués',
         deaths: 'Morts de Bobby',
         coinsCollected: 'Pièces collectées',
+        leaderboard: 'Classement',
+        player: 'Joueur',
+        score: 'Score',
+        time: 'Temps',
+        date: 'Date',
+        level: 'Niveau',
+        noScoresYet: 'Aucun score encore',
+        errorLoadingLeaderboard: 'Erreur chargement classement',
         pause: 'Pause',
         play: 'Reprendre',
         levels: 'MONDE',
@@ -86,6 +104,14 @@ const translations: Record<Language, Translations> = {
         enemiesKilled: 'Enemies killed',
         deaths: 'Deaths',
         coinsCollected: 'Coins collected',
+        leaderboard: 'Leaderboard',
+        player: 'Player',
+        score: 'Score',
+        time: 'Time',
+        date: 'Date',
+        level: 'Level',
+        noScoresYet: 'No scores yet',
+        errorLoadingLeaderboard: 'Error loading leaderboard',
         pause: 'Pause',
         play: 'Resume',
         levels: 'WORLD',

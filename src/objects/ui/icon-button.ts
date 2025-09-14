@@ -1,4 +1,4 @@
-import AudioKey from '../../consts/audio-key'
+import { AudioKey } from '../../consts/audio-key'
 import { TILE_SIZE } from '../../consts/globals'
 import SceneKey from '../../consts/scene-key'
 import TextureKey from '../../consts/texture-key'
@@ -43,7 +43,7 @@ export default class IconButton extends Phaser.GameObjects.Container {
         event.stopPropagation()
         this.onHover()
         onPointerDown.call(scene, pointer, localX, localY, event)
-        ;(this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
+          ; (this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
       },
       this
     )
@@ -72,5 +72,10 @@ export default class IconButton extends Phaser.GameObjects.Container {
 
   setIconRotation(angle: number) {
     this.icon.angle = angle
+  }
+
+  setIconFrame(frame: number) {
+    this.icon.setFrame(frame)
+    this.defaultFrame = frame
   }
 }

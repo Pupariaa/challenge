@@ -10,6 +10,7 @@ export interface PlayerDataLevel {
   time: number
   coins?: number
   shinyCoin?: boolean
+  speedrunData?: any // Les données détaillées de speedrun
 }
 
 export interface DataLevels {
@@ -95,11 +96,11 @@ export interface LevelSize {
   height: number
 }
 
-export interface LevelPlatform extends LevelPosition, LevelSize {}
-export interface LevelLava extends LevelPosition, LevelSize {}
-export interface LevelItem extends LevelPosition, LevelSize {}
-export interface BossTrigger extends LevelPosition, LevelSize {}
-export interface LevelEventBlock extends LevelPosition, Partial<LevelSize> {}
+export interface LevelPlatform extends LevelPosition, LevelSize { }
+export interface LevelLava extends LevelPosition, LevelSize { }
+export interface LevelItem extends LevelPosition, LevelSize { }
+export interface BossTrigger extends LevelPosition, LevelSize { }
+export interface LevelEventBlock extends LevelPosition, Partial<LevelSize> { }
 
 export interface LevelOneWayPlatform extends LevelPosition, Pick<LevelSize, 'width'> {
   points?: LevelPosition[]
@@ -138,5 +139,5 @@ export interface LevelCannon extends LevelPosition {
   dir?: number
 }
 
-export interface LevelBump extends LevelPosition {}
-export interface LevelLavaBall extends LevelPosition {}
+export interface LevelBump extends LevelPosition { }
+export interface LevelLavaBall extends LevelPosition { }

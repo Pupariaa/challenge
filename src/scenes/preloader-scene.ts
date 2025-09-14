@@ -1,4 +1,4 @@
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import SceneKey from '../consts/scene-key'
 import TextureKey from '../consts/texture-key'
 import { getTranslation } from '../consts/translations'
@@ -14,7 +14,7 @@ export default class PreloaderScene extends Phaser.Scene {
     this.load.setBaseURL('assets')
     const graphics = this.make.graphics()
 
-    // Particles and other elements
+
     graphics.fillStyle(0x181425, 1)
     graphics.fillRect(0, 0, 20, 20)
     graphics.generateTexture(TextureKey.Particle, 20, 20)

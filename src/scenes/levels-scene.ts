@@ -1,4 +1,4 @@
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import DataKey from '../consts/data-key'
 import EventKey from '../consts/event-key'
 import { NUM_LEVELS_BY_WORLD } from '../consts/globals'
@@ -6,15 +6,15 @@ import { GameMode, WORLD_THEMES, WorldTheme } from '../consts/level'
 import SceneKey from '../consts/scene-key'
 import TextureKey, { IconsKey } from '../consts/texture-key'
 import IconButton from '../objects/ui/icon-button'
-import TextButton from '../objects/ui/text-button'
 import { getCurrentWorld, getLevelInfo, getLevelTotalCoins, setCurrentWorld } from '../utils/level'
-import { getCurrentLanguage, setLanguage, Language, getTranslation } from '../consts/translations'
+import { getTranslation } from '../consts/translations'
+import customLevel from '../levels/custom.json'
 import { stringifyTime } from '../utils/time'
 import { transitionEventsEmitter } from '../utils/transition'
 import AudioScene from './audio-scene'
-import customLevel from '../levels/custom.json'
 import { levelsData } from '../levels'
 import BackgroundScene from './background-scene'
+import { authService } from '../services/auth-service'
 
 export interface LevelsSceneProps {
   world?: number
@@ -23,6 +23,9 @@ export interface LevelsSceneProps {
 export default class LevelsScene extends Phaser.Scene {
   private currentWorld!: number
   private theme!: WorldTheme
+  private selectedLevel: number | null = null
+  private leaderboardButton!: IconButton
+  private levelButtons: Phaser.GameObjects.Rectangle[] = []
 
   constructor() {
     super({ key: SceneKey.Levels })
@@ -47,6 +50,9 @@ export default class LevelsScene extends Phaser.Scene {
     this.registry.set(DataKey.IsCheckpointActive, false)
     this.registry.set(DataKey.CoinsCollected, false)
 
+
+    this.syncRegistryWithProfile()
+
     this.add
       .text(width / 2, 24, `${getTranslation('levels')} ${this.currentWorld}`, {
         fontFamily: TextureKey.FontHeading,
@@ -56,13 +62,20 @@ export default class LevelsScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
 
     new IconButton(this, 80, 80, IconsKey.Back, () => this.goToScreen(SceneKey.Intro))
-    new IconButton(this, 200, 80, IconsKey.Language, this.goToLanguage)
+    new IconButton(this, 220, 80, IconsKey.Language, this.goToLanguage)
+    new IconButton(this, 480, 80, IconsKey.Edit, () => this.goToScreen(SceneKey.Game, { level: customLevel }))
 
-    new TextButton(this, width / 2, height - 120, getTranslation('levelEditor'), () => {
-      this.goToScreen(SceneKey.Game, { level: customLevel })
-    })
 
-    // Niveaux
+
+    this.leaderboardButton = new IconButton(this, 350, 80, IconsKey.Leaderboard, this.goToLeaderboard)
+    this.leaderboardButton.setAlpha(0.5)
+    this.leaderboardButton.setInteractive(false)
+
+
+
+
+
+
     const buttonOffset = 96
     const buttonSize = 160
     const buttonsPerCol = 2
@@ -86,6 +99,9 @@ export default class LevelsScene extends Phaser.Scene {
       )
     }
 
+
+    this.levelButtons = []
+
     for (let i = 0; i < NUM_LEVELS_BY_WORLD; i++) {
       const level = i + 1 + (this.currentWorld - 1) * NUM_LEVELS_BY_WORLD
       const col = Math.floor(i / buttonsPerCol)
@@ -101,13 +117,18 @@ export default class LevelsScene extends Phaser.Scene {
       const levelInfo = getLevelInfo(level)
       button.rotation = Phaser.Math.DegToRad(45)
 
-      if (levelInfo) {
-        button.setInteractive()
-        button.on('pointerdown', () => {
-          ; (this.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
-          this.goToScreen(SceneKey.Game, { number: level })
-        })
-      } else {
+
+      this.levelButtons.push(button)
+
+
+      button.setInteractive()
+      button.on('pointerdown', () => {
+        ; (this.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
+        this.selectLevel(level, button)
+      })
+
+
+      if (!levelInfo) {
         button.alpha = 0.5
       }
 
@@ -128,7 +149,7 @@ export default class LevelsScene extends Phaser.Scene {
         .text(x, y, (i + 1).toString(), { fontFamily: TextureKey.FontHeading, color: '#ffffff', fontSize: '64px' })
         .setOrigin(0.5)
 
-      // Pièces max
+
       const coins = (levelInfo && levelInfo.coins) || 0
       const levelTotalCoins = getLevelTotalCoins(level)
       if (coins > 0 && coins === levelTotalCoins) {
@@ -160,5 +181,97 @@ export default class LevelsScene extends Phaser.Scene {
   goToLanguage() {
     transitionEventsEmitter.emit(EventKey.TransitionStart)
     transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.start(SceneKey.Language), this)
+  }
+
+  selectLevel(level: number, button: Phaser.GameObjects.Rectangle) {
+
+    if (this.selectedLevel === level) {
+
+      const levelInfo = getLevelInfo(level)
+      if (levelInfo) {
+        this.selectedLevel = null // Réinitialiser la sélection
+        this.updateLeaderboardButton()
+        this.clearHighlight()
+        this.goToScreen(SceneKey.Game, { number: level })
+      } else {
+
+        this.goToLeaderboard()
+      }
+    } else {
+
+      this.selectedLevel = level
+      this.updateLeaderboardButton()
+      this.highlightSelectedLevel(button)
+    }
+  }
+
+  updateLeaderboardButton() {
+    if (this.selectedLevel) {
+      this.leaderboardButton.setAlpha(1)
+      this.leaderboardButton.setInteractive(true)
+    } else {
+      this.leaderboardButton.setAlpha(0.5)
+      this.leaderboardButton.setInteractive(false)
+    }
+  }
+
+  highlightSelectedLevel(selectedButton: Phaser.GameObjects.Rectangle) {
+
+    this.clearHighlight()
+
+
+    if (selectedButton) {
+      const tintableButton = selectedButton as any
+      if (typeof tintableButton.clearTint === 'function') {
+        tintableButton.clearTint() // S'assurer qu'il n'y a pas de tint précédent
+        tintableButton.setTint(0xffdd44) // Jaune pour la sélection
+      } else if (typeof tintableButton.setTint === 'function') {
+        tintableButton.setTint(0xffdd44) // Jaune pour la sélection
+      } else {
+
+        selectedButton.setFillStyle(0xffdd44)
+      }
+    }
+  }
+
+  clearHighlight() {
+
+    this.levelButtons.forEach((button) => {
+      if ('clearTint' in button && typeof button.clearTint === 'function') {
+        button.clearTint() // Enlever le tint
+      } else if ('setTint' in button && typeof button.setTint === 'function') {
+        button.setTint(0xffffff) // Couleur normale
+      } else {
+
+        button.setFillStyle(this.theme.button)
+      }
+    })
+  }
+
+  goToLeaderboard() {
+    if (this.selectedLevel) {
+      const levelToShow = this.selectedLevel
+
+      this.selectedLevel = null
+      this.updateLeaderboardButton()
+      this.clearHighlight()
+
+      transitionEventsEmitter.emit(EventKey.TransitionStart)
+      transitionEventsEmitter.once(EventKey.TransitionEnd, () => {
+
+        this.scene.start(SceneKey.Leaderboard, { selectedLevel: levelToShow })
+      }, this)
+    }
+  }
+
+  syncRegistryWithProfile() {
+    if (authService.isAuthenticated()) {
+      const settings = authService.getSettings()
+
+
+      if (settings.gameMode) {
+        this.registry.set(DataKey.GameMode, settings.gameMode)
+      }
+    }
   }
 }

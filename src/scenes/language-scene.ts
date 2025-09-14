@@ -32,11 +32,11 @@ export default class LanguageScene extends Phaser.Scene {
             })
             .setOrigin(0.5, 0)
 
-        // Boutons de langue
+
         this.btnFrench = new TextButton(this, width / 2, 240, getTranslation('french'), this.selectFrench)
         this.btnEnglish = new TextButton(this, width / 2, 380, getTranslation('english'), this.selectEnglish)
 
-        // Mettre en évidence la langue actuelle
+
         this.highlightCurrentLanguage()
 
         this.scene.launch(SceneKey.Transition)
@@ -45,11 +45,11 @@ export default class LanguageScene extends Phaser.Scene {
     private highlightCurrentLanguage() {
         const currentLang = getCurrentLanguage()
 
-        // Réinitialiser tous les boutons
+
         this.btnFrench.text = getTranslation('french')
         this.btnEnglish.text = getTranslation('english')
 
-        // Mettre en évidence la langue actuelle
+
         if (currentLang === Language.French) {
             this.btnFrench.text = `✓ ${getTranslation('french')}`
         } else {

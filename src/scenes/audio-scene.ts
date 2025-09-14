@@ -1,4 +1,4 @@
-import AudioKey from '../consts/audio-key'
+import { AudioKey } from '../consts/audio-key'
 import DataKey from '../consts/data-key'
 import SceneKey from '../consts/scene-key'
 
