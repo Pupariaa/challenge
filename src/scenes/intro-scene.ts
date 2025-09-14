@@ -201,26 +201,24 @@ export default class IntroScene extends Phaser.Scene {
 
   private createInfoPanel() {
 
-    const panelBg = this.add.rectangle(200, 60, 350, 80, 0x000000, 0.7)
-    panelBg.setStrokeStyle(1, 0x444444)
+    this.add.rectangle(200, 60, 350, 80, 0x000000, 0.2)
 
-
-    this.add.text(30, 35, 'Forked by Puparia', {
+    this.add.text(55, 40, 'Forked by Puparia', {
       fontSize: '14px',
       color: '#ffffff',
       fontFamily: 'Arial'
     })
 
-    this.add.text(30, 50, 'v1.0.22 • 14/09/2025', {
+    this.add.text(55, 65, 'v1.0.22 • 14/09/2025', {
       fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'Arial'
     })
 
 
-    const githubButton = new IconButton(this, 320, 45, IconsKey.Github, () => {
+    const githubButton = new IconButton(this, 335, 59, IconsKey.Github, () => {
       window.open('https://github.com/Pupariaa/challenge', '_blank')
     })
-    githubButton.setScale(0.7) // Réduire la taille
+    githubButton.setScale(0.7)
   }
 }
