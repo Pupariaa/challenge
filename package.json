@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production node server.js",
+    "build": "vite build",
+    "build:prod": "npm run build && npm run start:prod",
+    "build:deploy": "node scripts/build-deploy.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "gameanalytics": "^4.4.7",
     "phaser": "^3.87.0",
     "webfontloader": "^1.6.28"

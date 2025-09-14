@@ -312,22 +312,53 @@ export default class EditorScene extends Phaser.Scene {
       type: this.currentItem.type,
       ...(this.moveX !== 0 || this.moveY !== 0
         ? {
-            points: [{ x: x + this.moveX * TILE_SIZE, y: y + this.moveY * TILE_SIZE }],
-            ...(this.startAt !== 0 ? { startAt: this.startAt } : {}),
-          }
+          points: [{ x: x + this.moveX * TILE_SIZE, y: y + this.moveY * TILE_SIZE }],
+          ...(this.startAt !== 0 ? { startAt: this.startAt } : {}),
+        }
         : {}),
     })
   }
 
-  async importLevel() {
+  async importLevel(): Promise<void> {
     try {
-      const data = await navigator.clipboard.readText()
-      const decodedData = atob(data)
-      const rawData = JSON.parse(decodedData)
+      let clipboardText: string | null = null;
 
-      this.events.emit(EventKey.EditorImport, rawData)
+      if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+        try {
+          clipboardText = await navigator.clipboard.readText();
+        } catch { }
+      }
+
+      if (!clipboardText || clipboardText.trim() === '') {
+        const manualInput = window.prompt('Collez ici les données Base64 du niveau :', '');
+        if (!manualInput || manualInput.trim() === '') {
+          throw new Error('EmptyInput');
+        }
+        clipboardText = manualInput.trim();
+      }
+
+      const sanitizedText = clipboardText.replace(/\s+/g, '');
+      if (!/^[A-Za-z0-9+/=]+$/.test(sanitizedText)) {
+        throw new Error('InvalidBase64');
+      }
+
+      let decodedString: string;
+      try {
+        decodedString = atob(sanitizedText);
+      } catch {
+        throw new Error('DecodeError');
+      }
+
+      let parsedObject: unknown;
+      try {
+        parsedObject = JSON.parse(decodedString);
+      } catch {
+        throw new Error('JsonParseError');
+      }
+
+      this.events.emit(EventKey.EditorImport, parsedObject);
     } catch {
-      console.log('Niveau non valide')
+      console.log('Niveau non valide');
     }
   }
 
@@ -363,19 +394,19 @@ export default class EditorScene extends Phaser.Scene {
           : 0
         this.updateMoveXY()
         this.startAt = this.currentItem.data.startAt || 0
-        ;(this.toolButtons[EditorTool.StartAt] as NumberChoice).value = this.startAt
+          ; (this.toolButtons[EditorTool.StartAt] as NumberChoice).value = this.startAt
       }
 
       if (this.currentItem?.type === EditorType.Enemy) {
         const dir = this.currentItem.data.dir ?? 1
-        ;(this.toolButtons[EditorTool.Direction] as IconButton).setIconRotation(dir === 1 ? 0 : 180)
+          ; (this.toolButtons[EditorTool.Direction] as IconButton).setIconRotation(dir === 1 ? 0 : 180)
       }
     }
   }
 
   updateMoveXY() {
-    ;(this.toolButtons[EditorTool.MoveX] as NumberChoice).value = this.moveX
-    ;(this.toolButtons[EditorTool.MoveY] as NumberChoice).value = this.moveY
+    ; (this.toolButtons[EditorTool.MoveX] as NumberChoice).value = this.moveX
+      ; (this.toolButtons[EditorTool.MoveY] as NumberChoice).value = this.moveY
   }
 
   selectType(to: EditorType) {
