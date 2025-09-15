@@ -756,9 +756,12 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   getWorldXY(pointer: Phaser.Input.Pointer) {
+    const camera = this.gameCamera
+    const worldPoint = camera.getWorldPoint(pointer.x, pointer.y)
+
     return {
-      worldX: pointer.worldX + this.gameCamera.scrollX,
-      worldY: pointer.worldY + this.gameCamera.scrollY,
+      worldX: worldPoint.x,
+      worldY: worldPoint.y,
     }
   }
 
