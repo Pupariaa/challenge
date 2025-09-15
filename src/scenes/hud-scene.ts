@@ -23,7 +23,6 @@ export default class HUDScene extends Phaser.Scene {
   private coinsText!: Phaser.GameObjects.Text
   private timerText!: Phaser.GameObjects.Text
   private panelPause!: Phaser.GameObjects.Container
-  private HUDItems!: Phaser.GameObjects.Container
   private coinsCollected!: number
   private timerStarted = false
   private startTime = 0
@@ -43,6 +42,8 @@ export default class HUDScene extends Phaser.Scene {
   }
 
   create() {
+    console.log('HUDScene.create() appelé')
+
     const { width, height } = this.scale
 
     this.cinematicFrameTop = this.add.rectangle(0, -CINEMATIC_FRAME_HEIGHT, width, CINEMATIC_FRAME_HEIGHT, 0x181425)
@@ -50,7 +51,6 @@ export default class HUDScene extends Phaser.Scene {
     this.cinematicFrameBottom = this.add.rectangle(0, height, width, CINEMATIC_FRAME_HEIGHT, 0x181425)
     this.cinematicFrameBottom.setOrigin(0, 0)
 
-    const mobileCursorsContainer = this.add.container()
 
 
     const gameScene = this.scene.get(SceneKey.Game) as GameScene
@@ -68,7 +68,6 @@ export default class HUDScene extends Phaser.Scene {
       (acc: number, val: number) => acc + val,
       0
     )
-    const coin = this.add.circle(60, 60, 20, 0xfee761)
     this.coinsText = this.add.text(92, 34, `x${this.coinsCollected.toString().padStart(2, '0')}`, {
       fontFamily: TextureKey.FontHeading,
       fontSize: '48px',
@@ -94,7 +93,6 @@ export default class HUDScene extends Phaser.Scene {
     if (isSpeedrunMode || isEditorPlayingTestMode) {
 
       speedrunRecorder.startRecording()
-      console.log('🎬 Enregistrement speedrun démarré')
 
       this.speedrunUUID = this.generateUUID()
       const startDate = new Date().toLocaleString('fr-FR')
@@ -213,11 +211,6 @@ export default class HUDScene extends Phaser.Scene {
     this.panelPause.add([panelOverlay, panelPauseBg, panelTxt, btnPlay, btnRestart, btnLevels])
 
 
-    const hudItems = [btnPause, coin, timerContainer, this.coinsText, mobileCursorsContainer]
-    if (this.userInfoContainer) {
-      hudItems.push(this.userInfoContainer)
-    }
-    this.HUDItems = this.add.container(0, 0, hudItems)
 
     this.events.once('shutdown', this.handleShutdown, this)
   }
@@ -257,7 +250,9 @@ export default class HUDScene extends Phaser.Scene {
 
     const infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.0\nFPS: ${fps}\nMS: ${ms}\n\nObjects:\nPlatforms: ${counts.platforms}\nFallingBlocks: ${counts.fallingBlocks}\nOneWayPlatforms: ${counts.oneWayPlatforms}\nSpikes: ${counts.spikes}\nSpikyBalls: ${counts.spikyBalls}\nCannons: ${counts.cannons}\nEnemies: ${counts.enemies}\nBumps: ${counts.bumps}\nCoins: ${counts.coins}`
 
-    this.userInfoText.setText(infoText)
+    if (this.userInfoText) {
+      this.userInfoText.setText(infoText)
+    }
   }
 
   private generateUUID(): string {
@@ -270,7 +265,6 @@ export default class HUDScene extends Phaser.Scene {
 
   toggleCinematicFrames() {
     this.showCinematicFrames = !this.showCinematicFrames
-    this.HUDItems.setVisible(!this.showCinematicFrames)
 
     this.tweens.add({
       targets: this.cinematicFrameTop,

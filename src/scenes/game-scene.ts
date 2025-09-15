@@ -218,7 +218,6 @@ export default class GameScene extends Phaser.Scene {
       this.isCustomLevel = true
     }
 
-    this.scene.stop(SceneKey.HUD)
     this.scene.stop(SceneKey.Editor)
     this.itemsMap = new Map()
     this.isCustomLevelRun = data.isCustomLevelRun ?? false
@@ -281,12 +280,15 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.isCustomLevel && !this.isCustomLevelRun) {
 
-      const mapCenterX = 0 // L'origine de la map est maintenant au centre
+      const mapCenterX = 0
       const mapCenterY = 0
-      this.background = this.add.rectangle(mapCenterX, mapCenterY, this.worldWidth, this.worldHeight, this.themeColors.background).setOrigin(0.5)
+      this.background = this.add.rectangle(mapCenterX, mapCenterY, this.worldWidth, this.worldHeight, this.themeColors.background).setOrigin(0.5).setDepth(-1000)
     } else {
 
-      this.background = this.add.rectangle(0, 0, this.cameras.main.width * 10, this.cameras.main.height * 10, this.themeColors.background).setOrigin(0.5)
+      const playerX = this.levelData.player.x
+      const playerY = this.levelData.player.y
+      this.background = this.add.rectangle(playerX, playerY, this.worldWidth, this.worldHeight, this.themeColors.background).setOrigin(0.5).setDepth(-1000)
+      console.log('Background créé:', { width: this.worldWidth, height: this.worldHeight, playerX, playerY, color: this.themeColors.background })
     }
 
     this.background2 = this.add
@@ -651,7 +653,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (!this.isCustomLevel || this.isCustomLevelRun || this.isEditorPlayingTestMode) {
-      this.scene.launch(SceneKey.HUD)
+      if (!this.scene.isActive(SceneKey.HUD)) {
+        console.log('Lancement de HUDScene')
+        this.scene.launch(SceneKey.HUD)
+      } else {
+        console.log('HUDScene déjà active, mise en resume')
+        this.scene.resume(SceneKey.HUD)
+      }
     }
 
 
@@ -699,8 +707,6 @@ export default class GameScene extends Phaser.Scene {
       }
     } else if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && !speedrunRecorder.isRecordingActive()) {
       console.log('⚠️ Mode speedrun/éditeur activé mais enregistrement non actif')
-    } else if (!this.isSpeedrunMode && !this.isEditorPlayingTestMode) {
-      console.log('⚠️ Pas en mode speedrun/éditeur')
     }
 
 
@@ -1360,8 +1366,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   lose() {
+    this.scene.pause(SceneKey.HUD)
     this.restartGame()
   }
+
 
   addCoins() {
     this.coins = this.physics.add.staticGroup()
