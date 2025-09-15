@@ -594,22 +594,18 @@ export default class EditorScene extends Phaser.Scene {
     this.btnToggle.toggleIcon(IconsKey.Edit)
     this.editButtonsPanel.setVisible(this.isEditing)
     if (this.isEditing) {
-      this.scene.pause(SceneKey.Game)
-
       this.scene.stop(SceneKey.HUD)
-
       this.registry.set(DataKey.GameMode, GameMode.Classic)
-
       this.showGrid = true
       this.events.emit(EventKey.EditorToggleGrid, true)
-
       this.levelSizePanel.setVisible(true)
+
+      this.gameScene.scene.restart({ isCustomLevelRun: false })
+
     } else {
       this.events.emit(EventKey.EditorPlaytest)
-
       this.showGrid = false
       this.events.emit(EventKey.EditorToggleGrid, false)
-
       this.levelSizePanel.setVisible(false)
     }
   }
