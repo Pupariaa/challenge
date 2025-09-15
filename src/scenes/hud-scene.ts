@@ -210,7 +210,18 @@ export default class HUDScene extends Phaser.Scene {
 
     this.panelPause.add([panelOverlay, panelPauseBg, panelTxt, btnPlay, btnRestart, btnLevels])
 
+    // Textes "Forked by Puparia" et version dans la HUD
+    this.add.text(1790, 1030, 'Forked by Puparia', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
 
+    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
+      fontSize: '11px',
+      color: '#aaaaaa',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
 
     this.events.once('shutdown', this.handleShutdown, this)
   }
