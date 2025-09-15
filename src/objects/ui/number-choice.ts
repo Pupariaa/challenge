@@ -21,7 +21,7 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
   private text: Phaser.GameObjects.Text
 
   set value(value: number) {
-    this._value = value
+    this._value = value || 0
     this.updateText()
   }
 
@@ -83,6 +83,8 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
   }
 
   updateText() {
-    this.text.setText(this._value.toString())
+    if (this.text && this._value !== undefined) {
+      this.text.setText(this._value.toString())
+    }
   }
 }
