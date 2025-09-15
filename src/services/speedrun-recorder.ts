@@ -14,7 +14,7 @@ class SpeedrunRecorder {
     }
     private positionInterval: number | null = null
 
-    
+
     startRecording() {
         if (this.isRecording) return
 
@@ -28,11 +28,9 @@ class SpeedrunRecorder {
             enemies: [],
             positions: []
         }
-
-        console.log('🎬 Enregistrement speedrun démarré avec précision nanoseconde')
     }
 
-    
+
     stopRecording(): SpeedrunData {
         if (!this.isRecording) {
             throw new Error('No recording in progress')
@@ -68,7 +66,7 @@ class SpeedrunRecorder {
         return speedrunData
     }
 
-    
+
     recordInput(action: 'jump' | 'move_left' | 'move_right' | 'stop_left' | 'stop_right', position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -81,7 +79,7 @@ class SpeedrunRecorder {
         console.log(`🎮 Input enregistré: ${action}, total inputs: ${this.gameplayData.inputs.length}`)
     }
 
-    
+
     recordCheckpoint(position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -91,7 +89,7 @@ class SpeedrunRecorder {
         })
     }
 
-    
+
     recordDeath(position: { x: number, y: number }, cause: 'spike' | 'lava' | 'enemy' | 'fall') {
         if (!this.isRecording) return
 
@@ -102,7 +100,7 @@ class SpeedrunRecorder {
         })
     }
 
-    
+
     recordCoin(coinId: number, position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -113,7 +111,7 @@ class SpeedrunRecorder {
         })
     }
 
-    
+
     recordEnemy(enemyId: string, position: { x: number, y: number }, action: 'kill' | 'damage') {
         if (!this.isRecording) return
 
@@ -125,7 +123,7 @@ class SpeedrunRecorder {
         })
     }
 
-    
+
     startPositionTracking(player: Phaser.GameObjects.Container, interval = 100) {
         if (!this.isRecording || this.positionInterval) return
 
@@ -145,7 +143,7 @@ class SpeedrunRecorder {
         }, interval)
     }
 
-    
+
     stopPositionTracking() {
         if (this.positionInterval) {
             clearInterval(this.positionInterval)
@@ -153,7 +151,7 @@ class SpeedrunRecorder {
         }
     }
 
-    
+
     private getEventCount() {
         return {
             inputs: this.gameplayData.inputs.length,
@@ -165,12 +163,12 @@ class SpeedrunRecorder {
         }
     }
 
-    
+
     isRecordingActive(): boolean {
         return this.isRecording
     }
 
-    
+
     getCurrentData() {
         return {
             isRecording: this.isRecording,
