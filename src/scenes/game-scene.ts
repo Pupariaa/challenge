@@ -315,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
     })
     const platformsPos = this.levelData.platforms || []
     for (let i = 0; i < platformsPos.length; i++) {
-      this.addPlatform(platformsPos[i], true) // Marquer comme objets par défaut
+      this.addPlatform(platformsPos[i], false)
     }
     this.platformsHitbox = this.physics.add.staticGroup()
     this.createPlatformsHitbox()
@@ -328,7 +328,7 @@ export default class GameScene extends Phaser.Scene {
     })
     const oneWayPlatformsPos = this.levelData.oneWayPlatforms || []
     for (let i = 0; i < oneWayPlatformsPos.length; i++) {
-      this.addOneWayPlatform(oneWayPlatformsPos[i], true) // Marquer comme objets par défaut
+      this.addOneWayPlatform(oneWayPlatformsPos[i], false)
     }
 
     this.fireballs = this.physics.add.group({
@@ -1443,21 +1443,115 @@ export default class GameScene extends Phaser.Scene {
 
     const key = this.getMapKey(x, y)
 
-
     if (this.itemsMap.has(key)) {
       const oldItem = this.itemsMap.get(key)
       if (oldItem && oldItem.object) {
-
         this.removeItemFromGroup(oldItem)
       }
     }
 
     this.itemsMap.set(key, item)
 
-
     if (isDefault) {
       this.defaultItemsPositions.add(key)
     }
+  }
+
+  rebuildItemsMap() {
+    if (!this.isCustomLevel) return
+
+    this.itemsMap.clear()
+    this.defaultItemsPositions.clear()
+
+    const platformsPos = this.levelData.platforms || []
+    platformsPos.forEach(pos => {
+      const platform = this.platforms.children.entries.find((p: any) =>
+        Math.abs(p.x - pos.x) < 5 && Math.abs(p.y - pos.y) < 5
+      )
+      if (platform) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Platform, object: platform as Platform, data: pos }, false)
+      }
+    })
+
+    const oneWayPlatformsPos = this.levelData.oneWayPlatforms || []
+    oneWayPlatformsPos.forEach(pos => {
+      const platform = this.oneWayPlatforms.children.entries.find((p: any) =>
+        Math.abs(p.x - pos.x) < 1 && Math.abs(p.y - pos.y) < 1
+      )
+      if (platform) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.OneWayPlatform, object: platform as OneWayPlatform, data: pos }, false)
+      }
+    })
+
+    const spikesPos = this.levelData.spikes || []
+    spikesPos.forEach(pos => {
+      const spike = this.spikes.children.entries.find((s: any) =>
+        Math.abs(s.x - pos.x) < 1 && Math.abs(s.y - pos.y) < 1
+      )
+      if (spike) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Spike, object: spike as Spike, data: pos }, false)
+      }
+    })
+
+    const fallingBlocksPos = this.levelData.fallingBlocks || []
+    fallingBlocksPos.forEach(pos => {
+      const block = this.fallingBlocks.children.entries.find((b: any) =>
+        Math.abs(b.x - pos.x) < 1 && Math.abs(b.y - pos.y) < 1
+      )
+      if (block) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.FallingBlock, object: block as FallingBlock, data: pos }, false)
+      }
+    })
+
+    const spikyBallsPos = this.levelData.spikyBalls || []
+    spikyBallsPos.forEach(pos => {
+      const ball = this.spikyBalls.children.entries.find((b: any) =>
+        Math.abs(b.x - pos.x) < 1 && Math.abs(b.y - pos.y) < 1
+      )
+      if (ball) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.SpikyBall, object: ball as SpikyBall, data: pos }, false)
+      }
+    })
+
+    const cannonsPos = this.levelData.cannons || []
+    cannonsPos.forEach(pos => {
+      const cannon = this.cannons.children.entries.find((c: any) =>
+        Math.abs(c.x - pos.x) < 1 && Math.abs(c.y - pos.y) < 1
+      )
+      if (cannon) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Cannon, object: cannon as Cannon, data: pos }, false)
+      }
+    })
+
+    const enemiesPos = this.levelData.enemies || []
+    enemiesPos.forEach(pos => {
+      const enemy = this.enemies.children.entries.find((e: any) =>
+        Math.abs(e.x - pos.x) < 1 && Math.abs(e.y - pos.y) < 1
+      )
+      if (enemy) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Enemy, object: enemy as Phaser.GameObjects.Sprite, data: pos }, false)
+      }
+    })
+
+    const bumpsPos = this.levelData.bumps || []
+    bumpsPos.forEach(pos => {
+      const bump = this.bumps.children.entries.find((b: any) =>
+        Math.abs(b.x - pos.x) < 1 && Math.abs(b.y - pos.y) < 1
+      )
+      if (bump) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Bump, object: bump as Bump, data: pos }, false)
+      }
+    })
+
+    const coinsPos = this.levelData.coins || []
+    coinsPos.forEach(pos => {
+      const coin = this.coins.children.entries.find((c: any) =>
+        Math.abs(c.x - pos.x) < 1 && Math.abs(c.y - pos.y) < 1
+      )
+      if (coin) {
+        this.addMapItem(pos.x, pos.y, { type: EditorType.Coin, object: coin as Coin, data: pos }, false)
+      }
+    })
   }
 
   private removeItemFromGroup(item: EditorItem) {
