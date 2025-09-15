@@ -594,12 +594,11 @@ export default class EditorScene extends Phaser.Scene {
     this.editButtonsPanel.setVisible(this.isEditing)
     if (this.isEditing) {
       this.scene.stop(SceneKey.HUD)
+      this.scene.pause(SceneKey.Game)
       this.registry.set(DataKey.GameMode, GameMode.Classic)
       this.showGrid = true
       this.events.emit(EventKey.EditorToggleGrid, true)
       this.levelSizePanel.setVisible(true)
-
-      this.scene.pause(SceneKey.Game)
     } else {
       this.events.emit(EventKey.EditorPlaytest)
       this.showGrid = false
@@ -857,6 +856,8 @@ export default class EditorScene extends Phaser.Scene {
 
   quit() {
 
+
+
     this.registry.set(DataKey.GameMode, GameMode.Classic)
 
     transitionEventsEmitter.emit(EventKey.TransitionStart)
@@ -866,6 +867,8 @@ export default class EditorScene extends Phaser.Scene {
         const gameScene = this.gameScene
         if (this.isCustomLevelRun) {
           gameScene.scene.restart({ isCustomLevelRun: false })
+          this.toggleEdition()
+          this.events.emit(EventKey.EditorToggleGrid, true)
         } else {
           gameScene.scene.start(SceneKey.Levels)
         }

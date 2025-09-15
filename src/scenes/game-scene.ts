@@ -652,7 +652,12 @@ export default class GameScene extends Phaser.Scene {
         .setDepth(100)
     }
 
-    if (!this.isCustomLevel || this.isCustomLevelRun || this.isEditorPlayingTestMode) {
+    console.log('🎮 GameScene.create() - isCustomLevel:', this.isCustomLevel, 'isCustomLevelRun:', this.isCustomLevelRun, 'isEditorPlayingTestMode:', this.isEditorPlayingTestMode)
+
+    // Vérifier si on est vraiment en mode éditeur (pas juste isCustomLevel)
+    const isReallyEditorMode = this.isCustomLevel && !this.isCustomLevelRun && !this.isEditorPlayingTestMode
+
+    if (!isReallyEditorMode) {
       if (!this.scene.isActive(SceneKey.HUD)) {
         console.log('Lancement de HUDScene')
         this.scene.launch(SceneKey.HUD)
@@ -660,6 +665,8 @@ export default class GameScene extends Phaser.Scene {
         console.log('HUDScene déjà active, mise en resume')
         this.scene.resume(SceneKey.HUD)
       }
+    } else {
+      console.log('🎮 Pas de lancement HUD - mode éditeur pur')
     }
 
 
@@ -1356,6 +1363,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.player.isDead) return
     this.restartGame()
   }
+
 
   restartGame(data?: object) {
     if (this.isTransitionning) return
