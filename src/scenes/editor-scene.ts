@@ -815,8 +815,20 @@ export default class EditorScene extends Phaser.Scene {
 
 
     const existingItem = this.gameScene.getItemAtSnappedPosition(snappedX, snappedY)
+
+    const canOverlapPlatforms = [
+      EditorType.Spike,
+      EditorType.SpikyBall,
+      EditorType.Cannon,
+      EditorType.Coin
+    ].includes(this.type)
+
     if (existingItem) {
-      return // Ne pas placer si un objet existe déjà à cette position
+      const isPlatform = existingItem.type === EditorType.Platform
+
+      if (canOverlapPlatforms && !isPlatform) {
+        return // Les objets spéciaux ne peuvent être placés que sur les plateformes
+      }
     }
 
     this.events.emit(EventKey.EditorPlaceItem, {

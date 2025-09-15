@@ -47,9 +47,7 @@ export class PlayService {
         return PlayService.instance
     }
 
-    /**
-     * Génère un UUID unique pour une play
-     */
+    
     private generatePlayId(): string {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             const r = Math.random() * 16 | 0
@@ -58,9 +56,7 @@ export class PlayService {
         })
     }
 
-    /**
-     * Sauvegarde une play dans un fichier JSON
-     */
+    
     public async savePlay(playData: Omit<PlayData, 'id' | 'createdAt'>): Promise<string> {
         const id = this.generatePlayId()
         const createdAt = new Date().toISOString()
@@ -96,9 +92,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Sauvegarde une play et met à jour le profil utilisateur
-     */
+    
     public async savePlayAndUpdateProfile(playData: Omit<PlayData, 'id' | 'createdAt'>): Promise<string> {
         const id = this.generatePlayId()
         const createdAt = new Date().toISOString()
@@ -171,9 +165,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Récupère les plays stockées localement (fallback)
-     */
+    
     private getStoredPlays(): PlayData[] {
         try {
             const stored = localStorage.getItem('game_plays')
@@ -183,9 +175,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Sauvegarde les données de play sur le serveur en tant que fichier JSON
-     */
+    
     private async savePlayDataToServer(playData: PlayData): Promise<boolean> {
         try {
             const response = await fetch('/api/play-data', {
@@ -211,9 +201,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Sauvegarde les données de play localement en cas d'erreur serveur
-     */
+    
     private savePlayDataLocally(playData: PlayData): void {
         try {
             const plays = this.getStoredPlays()
@@ -225,9 +213,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Sauvegarde un fichier détaillé de speedrun avec toutes les données de gameplay
-     */
+    
     private async saveDetailedSpeedrunFile(playData: PlayData): Promise<void> {
         try {
             const user = authService.getCurrentUser()
@@ -320,9 +306,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Récupère les speedruns détaillées stockées localement
-     */
+    
     private getDetailedSpeedrunPlays(): any[] {
         try {
             const stored = localStorage.getItem('detailed_speedruns')
@@ -332,9 +316,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Crée les données de play à partir des informations de niveau
-     */
+    
     public createPlayData(
         levelId: string | number,
         levelName: string,
@@ -376,9 +358,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Crée les données de play à partir d'un objet CommunityLevelData unifié
-     */
+    
     public createPlayDataFromLevel(
         levelData: any,
         levelId: string | number,
@@ -444,9 +424,7 @@ export class PlayService {
         }
     }
 
-    /**
-     * Extrait l'UUID d'un niveau officiel depuis les données
-     */
+    
     private extractUuidFromLevelData(levelData: any, levelId: number): string {
 
 

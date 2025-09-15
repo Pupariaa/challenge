@@ -1065,7 +1065,19 @@ export default class GameScene extends Phaser.Scene {
       return
     }
 
-    this.removeItemAt(x, y)
+    const existingItem = this.getItemAt(x, y)
+    const canOverlapPlatforms = [
+      EditorType.Spike,
+      EditorType.SpikyBall,
+      EditorType.Cannon,
+      EditorType.Coin
+    ].includes(type)
+
+    const isPlatform = existingItem?.type === EditorType.Platform
+
+    if (!(canOverlapPlatforms && isPlatform)) {
+      this.removeItemAt(x, y)
+    }
 
     if (type === EditorType.Platform) {
       this.addPlatform({ x, y, width: TILE_SIZE, height: TILE_SIZE }, isDefault)

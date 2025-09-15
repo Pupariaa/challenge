@@ -1,8 +1,6 @@
 import { SpeedrunData } from './auth-service'
 
-/**
- * Service pour enregistrer toutes les données de gameplay pendant une speedrun
- */
+
 class SpeedrunRecorder {
     private isRecording = false
     private startTime = 0
@@ -16,9 +14,7 @@ class SpeedrunRecorder {
     }
     private positionInterval: number | null = null
 
-    /**
-     * Démarrer l'enregistrement d'une speedrun
-     */
+    
     startRecording() {
         if (this.isRecording) return
 
@@ -36,9 +32,7 @@ class SpeedrunRecorder {
         console.log('🎬 Enregistrement speedrun démarré avec précision nanoseconde')
     }
 
-    /**
-     * Arrêter l'enregistrement et retourner les données
-     */
+    
     stopRecording(): SpeedrunData {
         if (!this.isRecording) {
             throw new Error('No recording in progress')
@@ -74,9 +68,7 @@ class SpeedrunRecorder {
         return speedrunData
     }
 
-    /**
-     * Enregistrer un input du joueur
-     */
+    
     recordInput(action: 'jump' | 'move_left' | 'move_right' | 'stop_left' | 'stop_right', position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -89,9 +81,7 @@ class SpeedrunRecorder {
         console.log(`🎮 Input enregistré: ${action}, total inputs: ${this.gameplayData.inputs.length}`)
     }
 
-    /**
-     * Enregistrer l'activation d'un checkpoint
-     */
+    
     recordCheckpoint(position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -101,9 +91,7 @@ class SpeedrunRecorder {
         })
     }
 
-    /**
-     * Enregistrer la mort du joueur
-     */
+    
     recordDeath(position: { x: number, y: number }, cause: 'spike' | 'lava' | 'enemy' | 'fall') {
         if (!this.isRecording) return
 
@@ -114,9 +102,7 @@ class SpeedrunRecorder {
         })
     }
 
-    /**
-     * Enregistrer la collecte d'une pièce
-     */
+    
     recordCoin(coinId: number, position: { x: number, y: number }) {
         if (!this.isRecording) return
 
@@ -127,9 +113,7 @@ class SpeedrunRecorder {
         })
     }
 
-    /**
-     * Enregistrer une interaction avec un ennemi
-     */
+    
     recordEnemy(enemyId: string, position: { x: number, y: number }, action: 'kill' | 'damage') {
         if (!this.isRecording) return
 
@@ -141,9 +125,7 @@ class SpeedrunRecorder {
         })
     }
 
-    /**
-     * Démarrer l'enregistrement de la position du joueur (échantillonnage)
-     */
+    
     startPositionTracking(player: Phaser.GameObjects.Container, interval = 100) {
         if (!this.isRecording || this.positionInterval) return
 
@@ -163,9 +145,7 @@ class SpeedrunRecorder {
         }, interval)
     }
 
-    /**
-     * Arrêter l'enregistrement de la position
-     */
+    
     stopPositionTracking() {
         if (this.positionInterval) {
             clearInterval(this.positionInterval)
@@ -173,9 +153,7 @@ class SpeedrunRecorder {
         }
     }
 
-    /**
-     * Obtenir le nombre total d'événements enregistrés
-     */
+    
     private getEventCount() {
         return {
             inputs: this.gameplayData.inputs.length,
@@ -187,16 +165,12 @@ class SpeedrunRecorder {
         }
     }
 
-    /**
-     * Vérifier si on est en train d'enregistrer
-     */
+    
     isRecordingActive(): boolean {
         return this.isRecording
     }
 
-    /**
-     * Obtenir les données actuelles (pour debug)
-     */
+    
     getCurrentData() {
         return {
             isRecording: this.isRecording,

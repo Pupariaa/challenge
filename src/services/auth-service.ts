@@ -393,9 +393,7 @@ class AuthService {
         return speedrunScore ? speedrunScore.time : null
     }
 
-    /**
-     * Sauvegarde les données des niveaux communautaires localement
-     */
+    
     private saveCommunityDataLocally(levelId: string, _time: number, _coins: number, _gameMode: 'classic' | 'speedrun', _speedrunData?: any): void {
         try {
             const communityData = {
@@ -413,9 +411,7 @@ class AuthService {
         }
     }
 
-    /**
-     * Charge les données des niveaux communautaires depuis le localStorage
-     */
+    
     private loadCommunityDataLocally(): void {
         try {
             const stored = localStorage.getItem('community_progress')
