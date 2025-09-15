@@ -158,7 +158,7 @@ export default class HUDScene extends Phaser.Scene {
           spikyBalls: 0, cannons: 0, enemies: 0, bumps: 0, coins: 0
         }
 
-        infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.0\nFPS: --\nMS: --\n\nObjects:\nPlatforms: ${this.objectCounts.platforms}\nFallingBlocks: ${this.objectCounts.fallingBlocks}\nOneWayPlatforms: ${this.objectCounts.oneWayPlatforms}\nSpikes: ${this.objectCounts.spikes}\nSpikyBalls: ${this.objectCounts.spikyBalls}\nCannons: ${this.objectCounts.cannons}\nEnemies: ${this.objectCounts.enemies}\nBumps: ${this.objectCounts.bumps}\nCoins: ${this.objectCounts.coins}`
+        infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.2\nFPS: --\nMS: --\n\nObjects:\nPlatforms: ${this.objectCounts.platforms}\nFallingBlocks: ${this.objectCounts.fallingBlocks}\nOneWayPlatforms: ${this.objectCounts.oneWayPlatforms}\nSpikes: ${this.objectCounts.spikes}\nSpikyBalls: ${this.objectCounts.spikyBalls}\nCannons: ${this.objectCounts.cannons}\nEnemies: ${this.objectCounts.enemies}\nBumps: ${this.objectCounts.bumps}\nCoins: ${this.objectCounts.coins}`
       } else {
 
         infoText = `${worldLevelText}\nPlayer: ${playerText}\nID: ${authService.isAuthenticated() ? 'Authentifié' : 'Non authentifié'}\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`

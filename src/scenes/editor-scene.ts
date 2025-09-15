@@ -600,8 +600,7 @@ export default class EditorScene extends Phaser.Scene {
       this.events.emit(EventKey.EditorToggleGrid, true)
       this.levelSizePanel.setVisible(true)
 
-      this.gameScene.scene.restart({ isCustomLevelRun: false })
-
+      this.scene.pause(SceneKey.Game)
     } else {
       this.events.emit(EventKey.EditorPlaytest)
       this.showGrid = false
