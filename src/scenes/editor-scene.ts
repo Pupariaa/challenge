@@ -51,9 +51,10 @@ export default class EditorScene extends Phaser.Scene {
   private itemDragOffset: Phaser.Math.Vector2 | null = null
   private levelWidth!: number
   private levelHeight!: number
-  private showHitboxes: boolean = false
   private showGrid: boolean = true
   private levelSizePanel!: Phaser.GameObjects.Container
+  private choiceLevelWidth!: NumberChoice
+  private choiceLevelHeight!: NumberChoice
   private history: any[] = []
   private historyIndex: number = -1
   private maxHistorySize: number = 50
@@ -67,6 +68,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   create() {
+    console.log('✏️ EditorScene: create() appelé.')
     const { width, height } = this.scale
     this.isCustomLevelRun = this.registry.get(DataKey.IsCustomLevelRun)
 
@@ -245,6 +247,8 @@ export default class EditorScene extends Phaser.Scene {
       this.events.emit(EventKey.EditorExport)
     })
     const btnImport = new IconButton(this, 1840, 280, IconsKey.Import, this.importLevel)
+    const btnSave = new IconButton(this, 1840, 380, IconsKey.Save, this.saveLevel)
+    const btnOpen = new IconButton(this, 1840, 480, IconsKey.Open, this.openLevel)
 
     const btnDelete = new IconButton(this, width / 2, height - 80, IconsKey.Delete, () => {
       this.events.emit(EventKey.EditorDeleteCurrent)
@@ -313,7 +317,7 @@ export default class EditorScene extends Phaser.Scene {
 
     this.levelSizePanel = this.add.container(0, 0)
 
-    const choiceLevelWidth = new NumberChoice({
+    this.choiceLevelWidth = new NumberChoice({
       scene: this,
       x: 1280,
       y: 80,
@@ -326,9 +330,9 @@ export default class EditorScene extends Phaser.Scene {
         this.updateLevelSize()
       },
     })
-    choiceLevelWidth.value = this.levelWidth
+    this.choiceLevelWidth.value = this.levelWidth
 
-    const choiceLevelHeight = new NumberChoice({
+    this.choiceLevelHeight = new NumberChoice({
       scene: this,
       x: 980,
       y: 80,
@@ -341,27 +345,22 @@ export default class EditorScene extends Phaser.Scene {
         this.updateLevelSize()
       },
     })
-    choiceLevelHeight.value = this.levelHeight
+    this.choiceLevelHeight.value = this.levelHeight
 
-    this.levelSizePanel.add([choiceLevelWidth, choiceLevelHeight])
+    this.levelSizePanel.add([this.choiceLevelWidth, this.choiceLevelHeight])
     this.levelSizePanel.setVisible(true)
 
-    const btnHitbox = new IconButton(this, 1840, 380, IconsKey.Hitbox, () => {
-      this.showHitboxes = !this.showHitboxes
-      this.events.emit(EventKey.EditorToggleHitboxes, this.showHitboxes)
-      btnHitbox.setTint(this.showHitboxes ? 0x00ff00 : 0xffffff)
-    })
-    btnHitbox.setTint(this.showHitboxes ? 0x00ff00 : 0xffffff)
+    this.loadDefaultLevelIfNeeded()
 
-    const btnResetZoom = new IconButton(this, 1840, 480, IconsKey.RestoreZoom, () => {
+    const btnResetZoom = new IconButton(this, 1840, 580, IconsKey.RestoreZoom, () => {
       this.resetZoom()
     })
 
-    const btnTeleportToTarget = new IconButton(this, 1840, 580, IconsKey.FindTarget, () => {
+    const btnTeleportToTarget = new IconButton(this, 1840, 680, IconsKey.FindTarget, () => {
       this.teleportToTarget()
     })
 
-    const btnTeleportToPlayer = new IconButton(this, 1840, 680, IconsKey.FindBobby, () => {
+    const btnTeleportToPlayer = new IconButton(this, 1840, 780, IconsKey.FindBobby, () => {
       this.teleportToPlayer()
     })
 
@@ -386,7 +385,8 @@ export default class EditorScene extends Phaser.Scene {
       btnCoin,
       btnExport,
       btnImport,
-      btnHitbox,
+      btnSave,
+      btnOpen,
       btnResetZoom,
       btnTeleportToTarget,
       btnTeleportToPlayer,
@@ -403,10 +403,42 @@ export default class EditorScene extends Phaser.Scene {
 
     this.gameScene.events.on(EventKey.EditorItemSelected, this.handleItemSelected, this)
     this.events.once('shutdown', this.handleShutdown, this)
+
+    // Textes "Forked by Puparia" et version dans l'éditeur
+    this.add.text(1790, 1030, 'Forked by Puparia', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
+
+    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
+      fontSize: '11px',
+      color: '#aaaaaa',
+      fontFamily: 'Arial'
+    }).setScrollFactor(0).setDepth(1000)
   }
 
   handleShutdown() {
     this.events.off(EventKey.EditorItemSelected, this.handleItemSelected, this)
+  }
+
+  wake() {
+    console.log('✏️ EditorScene: wake() appelé.')
+
+    // Forcer le mode éditeur
+    this.isEditing = true
+    this.events.emit(EventKey.EditorToggle, true)
+    this.btnToggle.toggleIcon(IconsKey.Edit)
+    this.editButtonsPanel.setVisible(true)
+    this.scene.stop(SceneKey.HUD)
+    this.scene.pause(SceneKey.Game)
+    this.registry.set(DataKey.GameMode, GameMode.Classic)
+    this.showGrid = true
+    this.events.emit(EventKey.EditorToggleGrid, true)
+    this.levelSizePanel.setVisible(true)
+
+    console.log('✏️ EditorScene: Mode éditeur forcé.')
+    this.teleportToPlayer()
   }
 
   updateCurrentItem() {
@@ -425,6 +457,127 @@ export default class EditorScene extends Phaser.Scene {
     })
     this.saveToHistory()
     this.events.emit(EventKey.EditorUpdateBackground)
+  }
+
+  async saveLevel(): Promise<void> {
+    try {
+      const currentEditorId = localStorage.getItem('currentEditorId')
+      const gameScene = this.scene.get(SceneKey.Game) as any
+      const levelData = gameScene.levelData
+
+      if (!currentEditorId) {
+        const levelName = window.prompt('Nom du niveau :', 'Mon niveau')
+        if (!levelName || levelName.trim() === '') {
+          return
+        }
+
+        const newId = this.generateLevelId()
+        const levelDataWithName = {
+          ...levelData,
+          name: levelName.trim(),
+          lastModified: new Date().toISOString()
+        }
+
+        const base64Data = btoa(JSON.stringify(levelDataWithName))
+        localStorage.setItem(`level_${newId}`, base64Data)
+        localStorage.setItem('currentEditorId', newId)
+
+        console.log(`✅ Niveau sauvegardé avec l'ID: ${newId}`)
+      } else {
+        const levelDataWithName = {
+          ...levelData,
+          name: levelData.name || 'Niveau sans nom',
+          lastModified: new Date().toISOString()
+        }
+
+        const base64Data = btoa(JSON.stringify(levelDataWithName))
+        localStorage.setItem(`level_${currentEditorId}`, base64Data)
+
+        console.log(`✅ Niveau mis à jour avec l'ID: ${currentEditorId}`)
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde:', error)
+    }
+  }
+
+  generateLevelId(): string {
+    return Math.floor(100000000000 + Math.random() * 900000000000).toString()
+  }
+
+  openLevel(): void {
+    transitionEventsEmitter.emit(EventKey.TransitionStart)
+    transitionEventsEmitter.once(EventKey.TransitionEnd, () => {
+      this.scene.start(SceneKey.SavedLevels)
+    }, this)
+  }
+
+  getSavedLevels(): Array<{ id: string, name: string, lastModified: string }> {
+    const levels: Array<{ id: string, name: string, lastModified: string }> = []
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('level_')) {
+        try {
+          const base64Data = localStorage.getItem(key)
+          if (base64Data) {
+            const levelData = JSON.parse(atob(base64Data))
+            const id = key.replace('level_', '')
+            levels.push({
+              id,
+              name: levelData.name || 'Niveau sans nom',
+              lastModified: levelData.lastModified || 'Date inconnue'
+            })
+          }
+        } catch (error) {
+          console.error(`Erreur lors du parsing du niveau ${key}:`, error)
+        }
+      }
+    }
+
+    return levels.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+  }
+
+  loadLevel(levelId: string): void {
+    try {
+      const base64Data = localStorage.getItem(`level_${levelId}`)
+      if (!base64Data) {
+        alert('Niveau introuvable')
+        return
+      }
+
+      localStorage.setItem('currentEditorId', levelId)
+
+      this.importLevelFromBase64(base64Data)
+
+      console.log(`✅ Niveau chargé avec l'ID: ${levelId}`)
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement:', error)
+      alert('Erreur lors du chargement du niveau')
+    }
+  }
+
+  importLevelFromBase64(base64Data: string): void {
+    try {
+      const levelData = JSON.parse(atob(base64Data))
+
+      this.events.emit(EventKey.EditorImport, levelData)
+
+      if (levelData && typeof levelData === 'object' && 'world' in levelData) {
+        const world = levelData.world
+        if (world && typeof world.width === 'number' && typeof world.height === 'number') {
+          this.levelWidth = world.width
+          this.levelHeight = world.height
+
+          if (this.choiceLevelWidth && this.choiceLevelHeight) {
+            this.choiceLevelWidth.value = this.levelWidth
+            this.choiceLevelHeight.value = this.levelHeight
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'import:', error)
+      alert('Erreur lors de l\'import du niveau')
+    }
   }
 
   async importLevel(): Promise<void> {
@@ -473,10 +626,8 @@ export default class EditorScene extends Phaser.Scene {
           this.levelWidth = world.width
           this.levelHeight = world.height
 
-          const choiceLevelWidth = this.levelSizePanel.list[0] as any
-          const choiceLevelHeight = this.levelSizePanel.list[1] as any
-          if (choiceLevelWidth) choiceLevelWidth.value = this.levelWidth
-          if (choiceLevelHeight) choiceLevelHeight.value = this.levelHeight
+          if (this.choiceLevelWidth) this.choiceLevelWidth.value = this.levelWidth
+          if (this.choiceLevelHeight) this.choiceLevelHeight.value = this.levelHeight
         }
       }
 
@@ -599,6 +750,13 @@ export default class EditorScene extends Phaser.Scene {
       this.showGrid = true
       this.events.emit(EventKey.EditorToggleGrid, true)
       this.levelSizePanel.setVisible(true)
+
+      // Reset du timer quand on revient à l'éditeur
+      const gameScene = this.scene.get(SceneKey.Game) as any
+      if (gameScene && gameScene.timerStarted !== undefined) {
+        gameScene.timerStarted = false
+        console.log('✏️ EditorScene: Timer reset lors du retour à l\'éditeur')
+      }
     } else {
       this.events.emit(EventKey.EditorPlaytest)
       this.showGrid = false
@@ -854,17 +1012,75 @@ export default class EditorScene extends Phaser.Scene {
 
 
 
+  loadDefaultLevelIfNeeded(): void {
+    const currentEditorId = localStorage.getItem('currentEditorId')
+
+    if (!currentEditorId) {
+      const defaultLevel = this.getDefaultLevel()
+
+      this.time.delayedCall(200, () => {
+        this.registry.set('loadingDefaultLevel', true)
+        this.events.emit(EventKey.EditorImport, defaultLevel)
+        this.registry.set('loadingDefaultLevel', false)
+      })
+
+      if (defaultLevel && typeof defaultLevel === 'object' && 'world' in defaultLevel) {
+        const world = defaultLevel.world as any
+        if (world && typeof world.width === 'number' && typeof world.height === 'number') {
+          this.levelWidth = world.width
+          this.levelHeight = world.height
+
+          if (this.choiceLevelWidth && this.choiceLevelHeight) {
+            this.choiceLevelWidth.value = this.levelWidth
+            this.choiceLevelHeight.value = this.levelHeight
+          }
+        }
+      }
+    }
+  }
+
+  getDefaultLevel(): any {
+    return {
+      name: 'Nouveau niveau',
+      "world": {
+        "width": 480000,
+        "height": 480000
+      },
+      "player": {
+        "x": 520,
+        "y": 520
+      },
+      "target": {
+        "x": 840,
+        "y": 520
+      },
+      "platforms": [
+        {
+          "x": 480,
+          "y": 560,
+          "width": 80,
+          "height": 80
+        }
+      ]
+    }
+  }
+
   quit() {
-
-
-
+    localStorage.removeItem('currentEditorId')
     this.registry.set(DataKey.GameMode, GameMode.Classic)
+
+    const gameScene = this.gameScene
+    if (gameScene) {
+      const defaultLevel = this.getDefaultLevel()
+      this.registry.set('loadingDefaultLevel', true)
+      this.events.emit(EventKey.EditorImport, defaultLevel)
+      this.registry.set('loadingDefaultLevel', false)
+    }
 
     transitionEventsEmitter.emit(EventKey.TransitionStart)
     transitionEventsEmitter.once(
       EventKey.TransitionEnd,
       () => {
-        const gameScene = this.gameScene
         if (this.isCustomLevelRun) {
           gameScene.scene.restart({ isCustomLevelRun: false })
           this.toggleEdition()
@@ -896,6 +1112,7 @@ export default class EditorScene extends Phaser.Scene {
     transitionEventsEmitter.once(
       EventKey.TransitionEnd,
       () => {
+        console.log('✏️ EditorScene: Redémarrage de GameScene pour testPlay')
         this.gameScene.scene.restart({ isCustomLevelRun: true })
       },
       this
@@ -916,18 +1133,28 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
-  teleportToPlayer() {
+  teleportToPlayer(retryCount = 0) {
     if (!this.isEditing) return
 
+    const maxRetries = 50
+    if (retryCount >= maxRetries) {
+      console.log('❌ Impossible de trouver Bobby après', maxRetries, 'tentatives')
+      return
+    }
 
     const gameScene = this.scene.get(SceneKey.Game) as any
-    console.log('Tentative de téléport vers Bobby...', { gameScene: !!gameScene, player: !!gameScene?.player })
+    console.log('Tentative de téléport vers Bobby...', {
+      gameScene: !!gameScene,
+      player: !!gameScene?.player,
+      playerX: gameScene?.player?.x,
+      playerY: gameScene?.player?.y,
+      retry: retryCount
+    })
 
     if (gameScene && gameScene.player && gameScene.player.x !== undefined && gameScene.player.y !== undefined) {
       const playerX = gameScene.player.x
       const playerY = gameScene.player.y
       console.log('Position de Bobby trouvée:', { x: playerX, y: playerY })
-
 
       this.gameCamera.centerOn(playerX, playerY)
       console.log('Caméra centrée sur Bobby')
@@ -935,7 +1162,7 @@ export default class EditorScene extends Phaser.Scene {
       console.log('Bobby pas encore chargé, réessai dans 200ms')
 
       this.time.delayedCall(200, () => {
-        this.teleportToPlayer()
+        this.teleportToPlayer(retryCount + 1)
       })
     }
   }
