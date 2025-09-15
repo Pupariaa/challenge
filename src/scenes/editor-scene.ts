@@ -768,27 +768,31 @@ export default class EditorScene extends Phaser.Scene {
   drawRect(pointer: Phaser.Input.Pointer) {
     if (!this.dragStartPoint) return
     this.rectGraphics.clear()
+
     const { worldX, worldY } = this.getWorldXY(pointer)
-    const startPosX = convertPointerToPos(this.dragStartPoint.x + this.gameCamera.scrollX)
-    const startPosY = convertPointerToPos(this.dragStartPoint.y + this.gameCamera.scrollY)
+    const startWorldPoint = this.gameCamera.getWorldPoint(this.dragStartPoint.x, this.dragStartPoint.y)
+
+    const startPosX = convertPointerToPos(startWorldPoint.x)
+    const startPosY = convertPointerToPos(startWorldPoint.y)
     const pointerPosX = convertPointerToPos(worldX)
     const pointerPosY = convertPointerToPos(worldY)
-    const width = pointerPosX - startPosX + Math.sign(pointer.worldX - this.dragStartPoint.x) * TILE_SIZE || TILE_SIZE
-    const height = pointerPosY - startPosY + Math.sign(pointer.worldY - this.dragStartPoint.y) * TILE_SIZE || TILE_SIZE
+
+    const cols = Math.abs(pointerPosX - startPosX) / TILE_SIZE + 1
+    const rows = Math.abs(pointerPosY - startPosY) / TILE_SIZE + 1
 
     this.rectInfo = {
-      worldX: this.dragStartPoint.x + this.gameCamera.scrollX,
-      worldY: this.dragStartPoint.y + this.gameCamera.scrollY,
-      cols: width / TILE_SIZE,
-      rows: height / TILE_SIZE,
+      worldX: startPosX,
+      worldY: startPosY,
+      cols: Math.max(1, cols),
+      rows: Math.max(1, rows),
     }
 
     this.rectGraphics.fillStyle(0xc0cbdc, 0.5)
     this.rectGraphics.fillRect(
-      startPosX - this.gameCamera.scrollX + (width < 0 ? TILE_SIZE : 0),
-      startPosY - this.gameCamera.scrollY + (height < 0 ? TILE_SIZE : 0),
-      width,
-      height
+      startPosX - this.gameCamera.scrollX,
+      startPosY - this.gameCamera.scrollY,
+      cols * TILE_SIZE,
+      rows * TILE_SIZE
     )
   }
 
