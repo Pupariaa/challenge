@@ -98,6 +98,8 @@ export default class GameScene extends Phaser.Scene {
   private timerStarted = false
   private _playerMode = PlayerMode.Platformer
   private isCheckpointActive = false
+  private deathCount = 0
+  private startTimeHighPrecision = 0
   private startedFromCheckpoint = false
   private coinsCollected!: number[]
   private isSpeedrunMode!: boolean
@@ -218,13 +220,22 @@ export default class GameScene extends Phaser.Scene {
       this.isCustomLevel = true
     }
 
-    this.scene.stop(SceneKey.Editor)
+    // Ne pas arrêter EditorScene si on est en mode testPlay
+    if (!data.isCustomLevelRun) {
+      this.scene.stop(SceneKey.Editor)
+    }
     this.itemsMap = new Map()
     this.isCustomLevelRun = data.isCustomLevelRun ?? false
     this.theme = this.levelData.theme || Theme.Forest
     this.themeColors = THEME_DATA[this.theme]
     this.registry.set(DataKey.IsCustomLevel, this.isCustomLevel)
     this.registry.set(DataKey.IsCustomLevelRun, this.isCustomLevelRun)
+
+    // Reset du timer pour testPlay
+    if (this.isCustomLevelRun) {
+      console.log('🎮 GameScene: Reset du timer pour testPlay')
+      this.timerStarted = false
+    }
 
 
     if (this.currentLevel) {
@@ -240,6 +251,8 @@ export default class GameScene extends Phaser.Scene {
     this.timerStarted = false
     this._playerMode = PlayerMode.Platformer
     this.isCheckpointActive = this.registry.get(DataKey.IsCheckpointActive)
+    this.deathCount = 0
+    this.startTimeHighPrecision = performance.now()
     this.startedFromCheckpoint = this.isCheckpointActive
     const coinsCollected = this.registry.get(DataKey.CoinsCollected) || []
     this.coinsCollected = [...coinsCollected]
@@ -1164,7 +1177,10 @@ export default class GameScene extends Phaser.Scene {
     await navigator.clipboard.writeText(levelEncoded)
   }
 
-  importLevel(level: DataLevel, shouldRestart = true) {
+  importLevel(level: DataLevel, shouldRestart = true, skipTransition = false) {
+    if (!this.levelData) {
+      this.levelData = {} as DataLevel
+    }
     ; (Object.keys(this.levelData) as (keyof DataLevel)[]).forEach((key) => delete this.levelData[key])
     const platformsCells = convertPlatformsToCells(level.platforms)
     Object.assign(this.levelData, {
@@ -1174,8 +1190,9 @@ export default class GameScene extends Phaser.Scene {
       ...(level.fallingBlocks && { fallingBlocks: convertFallingBlocksToCells(level.fallingBlocks) }),
     })
 
-    if (shouldRestart) {
-      this.restartGame()
+    const isLoadingDefaultLevel = this.registry.get('loadingDefaultLevel')
+    if (shouldRestart && !isLoadingDefaultLevel) {
+      this.restartGame(undefined, skipTransition)
     }
   }
 
@@ -1212,6 +1229,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   startTimer() {
+    console.log('🎮 GameScene: startTimer() appelé - Timer démarré!')
     this.timerStarted = true
     this._canMove = true
     this.events.emit(EventKey.StartTimer)
@@ -1278,6 +1296,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   checkFirstMove() {
+    console.log('🎮 GameScene: checkFirstMove() appelé', {
+      isReady: this.isReady,
+      timerStarted: this.timerStarted,
+      isCustomLevelRun: this.isCustomLevelRun,
+      isEditorPlayingTestMode: this.isEditorPlayingTestMode
+    })
     if (!this.isReady || this.timerStarted) return
     this.startTimer()
   }
@@ -1312,18 +1336,36 @@ export default class GameScene extends Phaser.Scene {
     this.trackProgression(ProgressionEventType.Complete)
 
     this.player.teleportTo(this.target, () => {
-      if (this.isCustomLevel) {
-        this.restartGame()
-      } else {
-        transitionEventsEmitter.emit(EventKey.TransitionStart)
-        transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.start(SceneKey.Levels), this)
-      }
+      const levelStats = this.getLevelStats()
+      console.log('🎮 GameScene: Lancement LevelCompleteScene avec stats:', levelStats)
+
+      this.scene.start(SceneKey.LevelComplete, levelStats)
     })
+  }
+
+  getLevelStats() {
+    const currentTime = performance.now() - this.startTimeHighPrecision
+    const coinsCollected = this.coinsCollected.filter(collected => collected).length
+    const totalCoins = this.coinsCollected.length
+    const deaths = this.deathCount
+    const levelName = this.isCustomLevel ?
+      'Niveau personnalisé' :
+      `Niveau ${this.currentLevel}`
+
+    return {
+      time: currentTime,
+      coinsCollected,
+      totalCoins,
+      deaths,
+      levelName,
+      isCustomLevel: this.isCustomLevel
+    }
   }
 
   die() {
     if (this.player.isDead) return
     this._canMove = false
+    this.deathCount++
     this.platformsCollider.active = false
     this.cannonsCollider.active = false
     this.oneWayPlatformsCollider.active = false
@@ -1365,8 +1407,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
 
-  restartGame(data?: object) {
+  restartGame(data?: object, skipTransition = false) {
     if (this.isTransitionning) return
+
+    if (skipTransition) {
+      this.scene.restart(data)
+      return
+    }
 
     this.isTransitionning = true
     transitionEventsEmitter.emit(EventKey.TransitionStart)
@@ -2015,17 +2062,7 @@ export default class GameScene extends Phaser.Scene {
 
   private createInfoPanel() {
 
-    this.add.text(1790, 1030, 'Forked by Puparia', {
-      fontSize: '14px',
-      color: '#ffffff',
-      fontFamily: 'Arial'
-    }).setScrollFactor(0).setDepth(1000)
-
-    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
-      fontSize: '11px',
-      color: '#aaaaaa',
-      fontFamily: 'Arial'
-    }).setScrollFactor(0).setDepth(1000)
+    // Textes déplacés vers EditorScene
   }
 
   updateGridDisplay() {
