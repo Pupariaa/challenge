@@ -2,6 +2,7 @@ import DataKey from '../consts/data-key'
 import EventKey from '../consts/event-key'
 import SceneKey from '../consts/scene-key'
 import TextureKey, { IconsKey } from '../consts/texture-key'
+import { GameMode } from '../consts/level'
 import IconButton from '../objects/ui/icon-button'
 import Panel from '../objects/ui/panel'
 import { getTranslation } from '../consts/translations'
@@ -369,12 +370,17 @@ export default class CommunityLevelsScene extends Phaser.Scene {
             )
 
 
-            const playButton = new IconButton(this, centerX + 320, y, IconsKey.Play, () => {
+            const playButton = new IconButton(this, centerX + 280, y, IconsKey.Play, () => {
                 this.playLevel(level.id)
             })
             playButton.setScale(0.6)
             this.paginationControls.push(playButton)
 
+            const copyButton = new IconButton(this, centerX + 330, y, IconsKey.Move, () => {
+                this.copyLevel(level.id)
+            })
+            copyButton.setScale(0.6)
+            this.paginationControls.push(copyButton)
 
             const leaderboardButton = new IconButton(this, centerX + 380, y, IconsKey.Leaderboard, () => {
                 this.goToLeaderboard(level.id, level.name, level.creator)
@@ -574,12 +580,110 @@ export default class CommunityLevelsScene extends Phaser.Scene {
         }
     }
 
+    copyLevel(levelId: string) {
+        const level = this.communityLevels.find(l => l.id === levelId)
+        if (level) {
+            try {
+                const levelInfo = getCommunityLevelById(levelId)
+
+                if (levelInfo && levelInfo.data) {
+                    const levelData = levelInfo.data
+
+                    const suggestedName = `${level.name} (Copie)`
+                    const uniqueName = this.getUniqueLevelName(suggestedName)
+                    const newLevelName = prompt(`Copier le niveau "${level.name}" :`, uniqueName)
+
+                    if (newLevelName && newLevelName.trim() !== '') {
+                        const newLevelId = Math.random().toString().slice(2, 14)
+
+                        const copiedLevelData = {
+                            ...levelData,
+                            name: newLevelName.trim(),
+                            lastModified: new Date().toISOString()
+                        }
+
+                        const base64Data = btoa(JSON.stringify(copiedLevelData))
+                        localStorage.setItem(`level_${newLevelId}`, base64Data)
+                        localStorage.setItem('currentEditorId', newLevelId)
+
+                        console.log(`✅ Niveau copié: "${level.name}" → "${newLevelName.trim()}"`)
+
+                        const gameScene = this.scene.get(SceneKey.Game) as any
+                        if (gameScene && gameScene.importLevel) {
+                            console.log('📋 CommunityLevelsScene: Tentative d\'import du niveau copié dans GameScene...')
+
+                            // S'assurer que GameScene est en mode éditeur
+                            this.registry.set(DataKey.GameMode, GameMode.Classic)
+                            this.registry.set(DataKey.IsCustomLevelRun, false)
+
+                            // Redémarrer GameScene avec le niveau copié en mode éditeur
+                            gameScene.scene.restart({ level: copiedLevelData, isCustomLevelRun: false })
+
+                            console.log('📋 CommunityLevelsScene: Niveau copié importé dans GameScene. Lancement de l\'éditeur...')
+                        } else {
+                            console.warn('📋 CommunityLevelsScene: GameScene ou importLevel non disponible.')
+                        }
+
+                        this.goToScreen(SceneKey.Editor)
+                    }
+                } else {
+                    console.error('❌ Données du niveau non trouvées:', levelInfo)
+                    alert('Erreur: Données du niveau non trouvées')
+                }
+            } catch (error) {
+                console.error('❌ Erreur lors de la copie du niveau:', error)
+                alert('Erreur lors de la copie du niveau')
+            }
+        }
+    }
+
     goToLeaderboard(levelId: string, levelName: string, levelCreator: string) {
         this.goToScreen(SceneKey.CommunityLeaderboard, {
             levelId: levelId,
             levelName: levelName,
             levelCreator: levelCreator
         })
+    }
+
+    getUniqueLevelName(baseName: string): string {
+        const existingNames = this.getExistingLevelNames()
+
+        if (!existingNames.includes(baseName)) {
+            return baseName
+        }
+
+        let counter = 1
+        let uniqueName = `${baseName} (${counter})`
+
+        while (existingNames.includes(uniqueName)) {
+            counter++
+            uniqueName = `${baseName} (${counter})`
+        }
+
+        return uniqueName
+    }
+
+    getExistingLevelNames(): string[] {
+        const names: string[] = []
+
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.startsWith('level_')) {
+                try {
+                    const base64Data = localStorage.getItem(key)
+                    if (base64Data) {
+                        const levelData = JSON.parse(atob(base64Data))
+                        if (levelData.name) {
+                            names.push(levelData.name)
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Erreur lors du parsing du niveau ${key}:`, error)
+                }
+            }
+        }
+
+        return names
     }
 
 }
