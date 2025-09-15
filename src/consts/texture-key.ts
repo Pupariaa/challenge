@@ -63,11 +63,13 @@ export enum IconsKey {
   DiscordLogged,
   Leaderboard,
   Github,
-  Hitbox,
-  GridZoomOut,
-  GridZoomIn,
+  Unallowed1,
+  Unallowed2,
+  Unallowed3,
   Community,
   FindBobby,
   FindTarget,
-  RestoreZoom
+  RestoreZoom,
+  Save,
+  Open
 }
