@@ -329,16 +329,6 @@ export default class CommunityLevelsScene extends Phaser.Scene {
                 .setAlpha(0.8)
                 .setInteractive()
                 .on('pointerdown', () => this.selectLevel(level.id, lineBg))
-                .on('pointerover', () => {
-                    if (this.selectedLevel !== level.id) {
-                        lineBg.setAlpha(0.9)
-                    }
-                })
-                .on('pointerout', () => {
-                    if (this.selectedLevel !== level.id) {
-                        lineBg.setAlpha(0.8)
-                    }
-                })
             this.entryImages.push(lineBg as any)
 
 
@@ -543,11 +533,10 @@ export default class CommunityLevelsScene extends Phaser.Scene {
         }
     }
 
-    selectLevel(levelId: string, button: Phaser.GameObjects.Rectangle) {
+    selectLevel(levelId: string, _button: Phaser.GameObjects.Rectangle) {
 
         this.selectedLevel = levelId
         this.updateLeaderboardButton()
-        this.highlightSelectedLevel(button)
     }
 
     updateLeaderboardButton() {
@@ -560,21 +549,6 @@ export default class CommunityLevelsScene extends Phaser.Scene {
         }
     }
 
-    highlightSelectedLevel(selectedButton: Phaser.GameObjects.Rectangle) {
-        this.clearHighlight()
-
-        if (selectedButton) {
-            selectedButton.setFillStyle(0xffdd44) // Jaune pour la sélection
-        }
-    }
-
-    clearHighlight() {
-        this.entryImages.forEach((image) => {
-            if (image instanceof Phaser.GameObjects.Rectangle) {
-                image.setFillStyle(0xffffff) // Remettre la couleur par défaut
-            }
-        })
-    }
 
     playLevel(levelId: string) {
 
