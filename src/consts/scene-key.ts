@@ -14,6 +14,8 @@ enum SceneKey {
   HUD = 'hud',
   Editor = 'editor',
   Game = 'game',
+  SavedLevels = 'savedLevels',
+  LevelComplete = 'levelComplete',
 }
 
 export default SceneKey
