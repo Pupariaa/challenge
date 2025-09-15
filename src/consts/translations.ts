@@ -97,7 +97,7 @@ const translations: Record<Language, Translations> = {
         comingSoon: 'Bientôt disponible',
         levelName: 'Nom du niveau',
         creator: 'Créateur',
-        numberOfPlays: 'Nombre de plays',
+        numberOfPlays: 'Jouée',
         action: 'Action',
         noLevelsAvailable: 'Aucun niveau disponible pour cette difficulté',
         unknownCreator: 'Créateur inconnu',
