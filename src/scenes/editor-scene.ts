@@ -79,10 +79,9 @@ export default class EditorScene extends Phaser.Scene {
     this.gameCamera.stopFollow()
 
 
-    const justImported = this.registry.get('justImportedMap')
-    if (!justImported) {
-      this.gameCamera.centerOn(0, 0)
-    }
+    this.time.delayedCall(100, () => {
+      this.teleportToPlayer()
+    })
     this.rectGraphics = this.add.graphics()
     this.spikeDir = 0
     this.cannonDir = 0
