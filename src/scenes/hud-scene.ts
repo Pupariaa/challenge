@@ -156,7 +156,7 @@ export default class HUDScene extends Phaser.Scene {
           spikyBalls: 0, cannons: 0, enemies: 0, bumps: 0, coins: 0
         }
 
-        infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.2\nFPS: --\nMS: --\n\nObjects:\nPlatforms: ${this.objectCounts.platforms}\nFallingBlocks: ${this.objectCounts.fallingBlocks}\nOneWayPlatforms: ${this.objectCounts.oneWayPlatforms}\nSpikes: ${this.objectCounts.spikes}\nSpikyBalls: ${this.objectCounts.spikyBalls}\nCannons: ${this.objectCounts.cannons}\nEnemies: ${this.objectCounts.enemies}\nBumps: ${this.objectCounts.bumps}\nCoins: ${this.objectCounts.coins}`
+        infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.2.0\nFPS: --\nMS: --\n\nObjects:\nPlatforms: ${this.objectCounts.platforms}\nFallingBlocks: ${this.objectCounts.fallingBlocks}\nOneWayPlatforms: ${this.objectCounts.oneWayPlatforms}\nSpikes: ${this.objectCounts.spikes}\nSpikyBalls: ${this.objectCounts.spikyBalls}\nCannons: ${this.objectCounts.cannons}\nEnemies: ${this.objectCounts.enemies}\nBumps: ${this.objectCounts.bumps}\nCoins: ${this.objectCounts.coins}`
       } else {
 
         infoText = `${worldLevelText}\nPlayer: ${playerText}\nID: ${authService.isAuthenticated() ? 'Authentifié' : 'Non authentifié'}\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
@@ -217,7 +217,7 @@ export default class HUDScene extends Phaser.Scene {
       fontFamily: 'Arial'
     }).setScrollFactor(0).setDepth(1000)
 
-    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
+    this.add.text(1790, 1050, 'v1.2.0 • 16/09/2025', {
       fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'Arial'
@@ -259,7 +259,7 @@ export default class HUDScene extends Phaser.Scene {
     const playerText = authService.isAuthenticated() ? 'Utilisateur authentifié' : 'Non authentifié'
     const startDate = new Date().toLocaleString('fr-FR')
 
-    const infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.0\nFPS: ${fps}\nMS: ${ms}\n\nObjects:\nPlatforms: ${counts.platforms}\nFallingBlocks: ${counts.fallingBlocks}\nOneWayPlatforms: ${counts.oneWayPlatforms}\nSpikes: ${counts.spikes}\nSpikyBalls: ${counts.spikyBalls}\nCannons: ${counts.cannons}\nEnemies: ${counts.enemies}\nBumps: ${counts.bumps}\nCoins: ${counts.coins}`
+    const infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.2.0\nFPS: ${fps}\nMS: ${ms}\n\nObjects:\nPlatforms: ${counts.platforms}\nFallingBlocks: ${counts.fallingBlocks}\nOneWayPlatforms: ${counts.oneWayPlatforms}\nSpikes: ${counts.spikes}\nSpikyBalls: ${counts.spikyBalls}\nCannons: ${counts.cannons}\nEnemies: ${counts.enemies}\nBumps: ${counts.bumps}\nCoins: ${counts.coins}`
 
     if (this.userInfoText) {
       this.userInfoText.setText(infoText)

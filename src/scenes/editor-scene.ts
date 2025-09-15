@@ -411,7 +411,7 @@ export default class EditorScene extends Phaser.Scene {
       fontFamily: 'Arial'
     }).setScrollFactor(0).setDepth(1000)
 
-    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
+    this.add.text(1790, 1050, 'v1.2.0 • 16/09/2025', {
       fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'Arial'

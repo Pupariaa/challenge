@@ -209,7 +209,7 @@ export default class IntroScene extends Phaser.Scene {
       fontFamily: 'Arial'
     })
 
-    this.add.text(55, 65, 'v1.1.0 • 14/09/2025', {
+    this.add.text(55, 65, 'v1.2.0 • 16/09/2025', {
       fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'Arial'
