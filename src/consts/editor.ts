@@ -98,6 +98,27 @@ export interface EditorPlaceItemsProps extends EditorPlaceItemProps {
   rows: number
 }
 
+export interface EditorMoveItemProps {
+  item: EditorItem
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  offsetX: number
+  offsetY: number
+}
+
+export interface EditorMoveItemCompleteProps {
+  item: EditorItem
+  fromX: number
+  fromY: number
+}
+
+export interface EditorUpdateLevelSizeProps {
+  width: number
+  height: number
+}
+
 export interface EditorRectInfo {
   worldX: number
   worldY: number

@@ -40,7 +40,7 @@ export default class Boss extends Phaser.GameObjects.Rectangle {
     if (this._isDead) return
 
     const body = this.body as Phaser.Physics.Arcade.Body
-    if (this.canShakeScreen && body.blocked.down) {
+    if (this.canShakeScreen && body && body.blocked && body.blocked.down) {
       this.canShakeScreen = false
       this.scene.cameras.main.shake(600, 0.01)
         ; (this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxShake)
@@ -48,19 +48,27 @@ export default class Boss extends Phaser.GameObjects.Rectangle {
 
     if (!this.isMoving) return
 
-    if (body.blocked.right) {
-      this.dir = -1
-    } else if (body.blocked.left) {
-      this.dir = 1
+    if (body && body.blocked) {
+      if (body.blocked.right) {
+        this.dir = -1
+      } else if (body.blocked.left) {
+        this.dir = 1
+      }
     }
 
-    body.setVelocityX(this.currentVelocity * this.dir)
+    if (body) {
+      body.setVelocityX(this.currentVelocity * this.dir)
+    }
   }
 
   hit() {
     const body = this.body as Phaser.Physics.Arcade.Body
     this.lives--
-    body.velocity.x = 0
+
+    if (body) {
+      body.velocity.x = 0
+    }
+
     this.isMoving = false
     this._isHittable = false
     this.isMoving = false
@@ -68,7 +76,9 @@ export default class Boss extends Phaser.GameObjects.Rectangle {
     if (this.lives === 0) {
       this.die()
     } else {
-      body.allowGravity = false
+      if (body) {
+        body.allowGravity = false
+      }
       this.currentVelocity *= 1.3
 
       this.scene.add

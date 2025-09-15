@@ -36,7 +36,7 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
       onUpdate.call(this, this._value)
     })
 
-    const [bgWidth, bgHeight] = [TILE_SIZE, (TILE_SIZE / 4) * 3]
+    const [bgWidth, bgHeight] = [TILE_SIZE * 1.5, (TILE_SIZE / 4) * 3]
     const [bgX, bgY] = [TILE_SIZE / 2 - 4, -TILE_SIZE / 4 - 2]
     const graphics = scene.add.graphics()
     graphics.fillStyle(0xffffff, 1)
@@ -44,13 +44,13 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
     graphics.lineStyle(4, 0x181425, 1)
     graphics.strokeRect(bgX, bgY, bgWidth, bgHeight)
 
-    const plus = new IconButton(scene, TILE_SIZE * 2 - 6, 0, IconsKey.Plus, () => {
+    const plus = new IconButton(scene, TILE_SIZE * 2.5 - 6, 0, IconsKey.Plus, () => {
       this.increase()
       onUpdate.call(this, this._value)
     })
 
     this.text = scene.add
-      .text(TILE_SIZE - 2, 8, this._value.toString(), {
+      .text(TILE_SIZE * 1.25 - 2, 8, this._value.toString(), {
         fontFamily: TextureKey.FontBody,
         fontSize: '32px',
         color: '#181425',
@@ -58,7 +58,7 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
       .setOrigin(0.5)
 
     const titleText = scene.add
-      .text(TILE_SIZE - 2, -40, title, {
+      .text(TILE_SIZE * 1.25 - 2, -40, title, {
         fontFamily: TextureKey.FontBody,
         fontSize: '24px',
         color: '#181425',
@@ -67,7 +67,7 @@ export default class NumberChoice extends Phaser.GameObjects.Container {
 
     this.add([graphics, minus, plus, this.text, titleText])
     scene.add.existing(this)
-    this.setSize(TILE_SIZE * 3 - 8, TILE_SIZE)
+    this.setSize(TILE_SIZE * 3.5 - 8, TILE_SIZE)
   }
 
   decrease() {

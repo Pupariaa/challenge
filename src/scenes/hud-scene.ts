@@ -9,8 +9,11 @@ import IconButton from '../objects/ui/icon-button'
 import Panel from '../objects/ui/panel'
 import { getLevelInfo, getLevelTotalCoins, updateLevelInfo } from '../utils/level'
 import { authService } from '../services/auth-service'
+import { playService } from '../services/play-service'
+import { speedrunRecorder } from '../services/speedrun-recorder'
 import { stringifyTime } from '../utils/time'
 import { transitionEventsEmitter } from '../utils/transition'
+import { levelsData } from '../levels'
 import GameScene from './game-scene'
 
 export default class HUDScene extends Phaser.Scene {
@@ -27,7 +30,12 @@ export default class HUDScene extends Phaser.Scene {
   private pauseTime = 0
   private userInfoText!: Phaser.GameObjects.Text
   private userInfoContainer!: Phaser.GameObjects.Container
+  private isEditorMode: boolean = false
   private speedrunUUID: string = ''
+  private objectCounts: any = null
+  private isCustomLevel: boolean = false
+  private currentWorld: number = 1
+  private currentLevel: number = 1
 
   constructor() {
     super({ key: SceneKey.HUD })
@@ -43,11 +51,7 @@ export default class HUDScene extends Phaser.Scene {
     this.cinematicFrameBottom.setOrigin(0, 0)
 
     const mobileCursorsContainer = this.add.container()
-    if (!this.sys.game.device.os.desktop) {
-      const cursorLeft = this.add.image(180, 940, TextureKey.BtnCursor).setAngle(180).setAlpha(0.5)
-      const cursorRight = this.add.image(420, 940, TextureKey.BtnCursor).setAlpha(0.5)
-      mobileCursorsContainer.add([cursorLeft, cursorRight])
-    }
+
 
     const gameScene = this.scene.get(SceneKey.Game) as GameScene
     const isCustomLevel = this.registry.get(DataKey.IsCustomLevel)
@@ -73,6 +77,8 @@ export default class HUDScene extends Phaser.Scene {
     gameScene.events.on(EventKey.CollectCoin, this.updateCoins, this)
 
     const isSpeedrunMode = this.registry.get(DataKey.GameMode) === GameMode.Speedrun
+    const isEditorPlayingTestMode = this.registry.get(DataKey.GameMode) === GameMode.EditorPlayingTest
+    const shouldShowTimer = isSpeedrunMode || isEditorPlayingTestMode
     this.timerStarted = false
     this.startTime = 0
     const timerBg = this.add.rectangle(0, 100, 320, 80, 0x262b44, 0.5).setOrigin(0)
@@ -82,37 +88,91 @@ export default class HUDScene extends Phaser.Scene {
       color: '#ffffff',
     })
     const timerContainer = this.add.container(0, 0, [timerBg, this.timerText])
-    timerContainer.setAlpha(isSpeedrunMode ? 1 : 0)
+    timerContainer.setAlpha(shouldShowTimer ? 1 : 0)
 
 
-    if (isSpeedrunMode) {
+    if (isSpeedrunMode || isEditorPlayingTestMode) {
+
+      speedrunRecorder.startRecording()
+      console.log('🎬 Enregistrement speedrun démarré')
 
       this.speedrunUUID = this.generateUUID()
       const startDate = new Date().toLocaleString('fr-FR')
-      const userInfoBg = this.add.rectangle(0, 200, 320, 100, 0x262b44, 0.5).setOrigin(0)
 
 
-      const currentLevel = this.registry.get('currentLevel') || 1
-      const world = Math.ceil(currentLevel / 5) // 5 niveaux par monde
-      const levelInWorld = ((currentLevel - 1) % 5) + 1
+      this.isEditorMode = isEditorPlayingTestMode
+      this.isCustomLevel = this.registry.get(DataKey.IsCustomLevel) || false
+      this.currentWorld = this.registry.get(DataKey.CurrentWorld) || 1
+      this.currentLevel = 1 // Valeur par défaut
+      const boxHeight = isEditorPlayingTestMode ? 280 : 100 // Plus haute en mode éditeur
+      const boxTop = isEditorPlayingTestMode ? 180 : 271// Plus haute en mode éditeur
 
-      let infoText = `World ${world} - Level ${levelInWorld}\nSession: Non authentifiée\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
+      const userInfoBg = this.add.rectangle(0, boxTop, 320, boxHeight, 0x262b44, 0.5).setOrigin(0)
 
+      let worldLevelText: string
+      let playerText: string
 
-      if (authService.isAuthenticated()) {
-        const user = authService.getCurrentUser()
-        if (user) {
-          infoText = `World ${world} - Level ${levelInWorld}\nPlayer: ${user.username}\nID: ${user.id}\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
+      if (isEditorPlayingTestMode) {
+
+        worldLevelText = 'Editor mode'
+        playerText = authService.isAuthenticated()
+          ? 'Utilisateur authentifié'
+          : 'Non authentifié'
+      } else {
+
+        const currentLevel = this.registry.get('currentLevel') || 1
+        const communityLevelId = this.registry.get('communityLevelId')
+        const communityLevelData = this.registry.get('communityLevelData')
+
+        if (currentLevel === 999 && communityLevelId && communityLevelData) {
+
+          const levelName = communityLevelData.name || 'Niveau sans nom'
+          const creator = communityLevelData.creators?.[0] || 'Créateur inconnu'
+          worldLevelText = `${levelName}\nby ${creator}`
+        } else {
+
+          const levelData = levelsData[`level${currentLevel}` as keyof typeof levelsData]
+          const levelName = levelData?.name || `Level ${currentLevel}`
+          const creator = levelData?.creators?.[0]
+
+          if (creator) {
+            worldLevelText = `${levelName}\nby ${creator}`
+          } else {
+            worldLevelText = levelName
+          }
         }
+
+        playerText = authService.isAuthenticated()
+          ? 'Utilisateur authentifié'
+          : 'Non authentifié'
       }
 
-      this.userInfoText = this.add.text(20, 250, infoText, {
+      let infoText: string
+
+      if (isEditorPlayingTestMode) {
+
+
+        const gameScene = this.scene.get(SceneKey.Game) as any
+        this.objectCounts = gameScene?.getObjectCounts?.() || {
+          platforms: 0, fallingBlocks: 0, oneWayPlatforms: 0, spikes: 0,
+          spikyBalls: 0, cannons: 0, enemies: 0, bumps: 0, coins: 0
+        }
+
+        infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.0\nFPS: --\nMS: --\n\nObjects:\nPlatforms: ${this.objectCounts.platforms}\nFallingBlocks: ${this.objectCounts.fallingBlocks}\nOneWayPlatforms: ${this.objectCounts.oneWayPlatforms}\nSpikes: ${this.objectCounts.spikes}\nSpikyBalls: ${this.objectCounts.spikyBalls}\nCannons: ${this.objectCounts.cannons}\nEnemies: ${this.objectCounts.enemies}\nBumps: ${this.objectCounts.bumps}\nCoins: ${this.objectCounts.coins}`
+      } else {
+
+        infoText = `${worldLevelText}\nPlayer: ${playerText}\nID: ${authService.isAuthenticated() ? 'Authentifié' : 'Non authentifié'}\nStarted: ${startDate}\nRun: ${this.speedrunUUID}`
+      }
+
+      this.userInfoText = this.add.text(20, 320, infoText, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: '#ffffff',
         lineSpacing: 3
       }).setOrigin(0, 0.5)
+
       this.userInfoContainer = this.add.container(0, 0, [userInfoBg, this.userInfoText])
+
       this.userInfoContainer.setAlpha(1)
     }
 
@@ -160,6 +220,44 @@ export default class HUDScene extends Phaser.Scene {
     this.HUDItems = this.add.container(0, 0, hudItems)
 
     this.events.once('shutdown', this.handleShutdown, this)
+  }
+
+  update(_time: number, delta: number) {
+
+    const isPaused = this.registry.get(DataKey.IsPaused)
+    if (this.startTime === 0 || !this.timerStarted || isPaused) {
+
+      if (this.isEditorMode && this.userInfoText) {
+        this.updateEditorInfo(delta)
+      }
+      return
+    }
+
+    const timeStr = stringifyTime(this.time.now - this.startTime)
+    this.timerText.setText(timeStr)
+
+
+    if (this.isEditorMode && this.userInfoText) {
+      this.updateEditorInfo(delta)
+    }
+  }
+
+  private updateEditorInfo(delta: number) {
+    const fps = Math.round(1000 / delta)
+    const ms = Math.round(delta)
+
+
+    const gameScene = this.scene.get(SceneKey.Game) as any
+    const counts = gameScene?.getObjectCounts?.() || this.objectCounts
+
+
+    const worldLevelText = this.isCustomLevel ? 'Custom Level' : `World ${this.currentWorld} - Level ${this.currentLevel}`
+    const playerText = authService.isAuthenticated() ? 'Utilisateur authentifié' : 'Non authentifié'
+    const startDate = new Date().toLocaleString('fr-FR')
+
+    const infoText = `${worldLevelText}\nDate: ${startDate}\nPlayer: ${playerText}\nEditor Version: 1.0.0\nFPS: ${fps}\nMS: ${ms}\n\nObjects:\nPlatforms: ${counts.platforms}\nFallingBlocks: ${counts.fallingBlocks}\nOneWayPlatforms: ${counts.oneWayPlatforms}\nSpikes: ${counts.spikes}\nSpikyBalls: ${counts.spikyBalls}\nCannons: ${counts.cannons}\nEnemies: ${counts.enemies}\nBumps: ${counts.bumps}\nCoins: ${counts.coins}`
+
+    this.userInfoText.setText(infoText)
   }
 
   private generateUUID(): string {
@@ -241,44 +339,76 @@ export default class HUDScene extends Phaser.Scene {
     this.registry.set(DataKey.IsPaused, !isPaused)
   }
 
-  handleLevelEnd({
+  async handleLevelEnd({
     currentLevel,
     startedFromCheckpoint,
   }: {
     currentLevel: number | null
     startedFromCheckpoint: boolean
   }) {
+    console.log('handleLevelEnd appelée avec:', { currentLevel, startedFromCheckpoint })
     this.stopTimer.call(this)
-    if (!currentLevel) return
+    if (!currentLevel) {
+      console.log('Pas de currentLevel, sortie')
+      return
+    }
 
     const levelInfo = getLevelInfo(currentLevel)
-    if (!levelInfo) return
+    console.log('levelInfo:', levelInfo)
 
-    const previousBestTime = levelInfo.time || Infinity
+
+    if (!levelInfo && currentLevel !== 999) {
+      console.log('Pas de levelInfo et pas un niveau communautaire, sortie')
+      return
+    }
+
+    const previousBestTime = levelInfo?.time || Infinity
     const newTime = this.time.now - this.startTime
-    const levelTotalCoins = getLevelTotalCoins(currentLevel)
-    const previousMaxCoins = levelInfo.coins || 0
 
+
+    let levelTotalCoins: number
+    if (currentLevel === 999) {
+      const communityLevelData = this.registry.get('communityLevelData')
+      levelTotalCoins = communityLevelData?.coins?.length || 0
+      console.log('Niveau communautaire - total coins:', levelTotalCoins)
+    } else {
+      levelTotalCoins = getLevelTotalCoins(currentLevel)
+    }
+
+    const previousMaxCoins = levelInfo?.coins || 0
 
     let speedrunData = undefined
     if (this.registry.get(DataKey.GameMode) === GameMode.Speedrun) {
-      speedrunData = this.registry.get('currentSpeedrunData')
-      if (speedrunData) {
 
-        if (this.speedrunUUID) {
-          speedrunData.uuid = this.speedrunUUID
-        }
+      try {
+        speedrunData = speedrunRecorder.stopRecording()
 
-        this.registry.remove('currentSpeedrunData')
+        speedrunData = { ...speedrunData, uuid: this.speedrunUUID }
+        console.log('🎬 Enregistrement speedrun arrêté, données récupérées')
+      } catch (error) {
+        console.error('Erreur lors de l\'arrêt de l\'enregistrement speedrun:', error)
+        speedrunData = { uuid: this.speedrunUUID }
       }
     }
 
-    updateLevelInfo(currentLevel, {
-      ...(this.registry.get(DataKey.GameMode) === GameMode.Speedrun && newTime < previousBestTime && { time: newTime }),
-      ...(this.coinsCollected > previousMaxCoins && { coins: this.coinsCollected }),
-      ...(this.coinsCollected === levelTotalCoins && !startedFromCheckpoint && { shinyCoin: true }),
-      speedrunData
-    })
+
+    try {
+      await this.savePlayData(currentLevel, newTime, levelTotalCoins, startedFromCheckpoint, speedrunData)
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la play:', error)
+    }
+
+
+    if (currentLevel !== 999) {
+      updateLevelInfo(currentLevel, {
+        ...(this.registry.get(DataKey.GameMode) === GameMode.Speedrun && newTime < previousBestTime && { time: newTime }),
+        ...(this.coinsCollected > previousMaxCoins && { coins: this.coinsCollected }),
+        ...(this.coinsCollected === levelTotalCoins && !startedFromCheckpoint && { shinyCoin: true }),
+        speedrunData
+      })
+    } else {
+      console.log('Niveau communautaire terminé - pas de mise à jour updateLevelInfo')
+    }
 
     this.startTime = 0
   }
@@ -299,11 +429,47 @@ export default class HUDScene extends Phaser.Scene {
     this.coinsText.setText(`x${this.coinsCollected.toString().padStart(2, '0')}`)
   }
 
-  update() {
-    const isPaused = this.registry.get(DataKey.IsPaused)
+  private async savePlayData(
+    currentLevel: number,
+    duration: number,
+    totalCoins: number,
+    startedFromCheckpoint: boolean,
+    speedrunData?: any
+  ) {
+    const gameMode = this.registry.get(DataKey.GameMode) === GameMode.Speedrun ? 'speedrun' : 'normal'
+    const endTime = this.time.now
+    const startTime = endTime - duration
 
-    if (this.startTime === 0 || !this.timerStarted || isPaused) return
-    const time = stringifyTime(this.time.now - this.startTime)
-    this.timerText.setText(time)
+
+    const isCommunityLevel = currentLevel === 999
+    let levelData: any
+    let levelId: string | number
+
+    if (isCommunityLevel) {
+
+      levelData = this.registry.get('communityLevelData')
+      levelId = this.registry.get('communityLevelId') || 'unknown'
+    } else {
+
+      const { levelsData } = await import('../levels')
+      const levelKey = `level${currentLevel}` as keyof typeof levelsData
+      levelData = levelsData[levelKey]
+      levelId = currentLevel
+    }
+
+    const playData = playService.createPlayDataFromLevel(
+      levelData,
+      levelId,
+      startTime,
+      endTime,
+      this.coinsCollected,
+      totalCoins,
+      startedFromCheckpoint,
+      gameMode,
+      speedrunData
+    )
+
+    await playService.savePlayAndUpdateProfile(playData)
   }
+
 }

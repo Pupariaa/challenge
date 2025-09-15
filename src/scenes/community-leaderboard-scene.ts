@@ -4,40 +4,49 @@ import TextureKey, { IconsKey } from '../consts/texture-key'
 import { getTranslation } from '../consts/translations'
 import IconButton from '../objects/ui/icon-button'
 import Panel from '../objects/ui/panel'
-import TextButton from '../objects/ui/text-button'
 import { transitionEventsEmitter } from '../utils/transition'
 import { stringifyTime } from '../utils/time'
 
-interface LeaderboardEntry {
+interface CommunityLeaderboardEntry {
     username: string
     time: number
     date: string
     avatar?: string
     userId?: string
+    coins: number
 }
 
-interface LeaderboardSceneProps {
-    selectedLevel?: number
+interface CommunityLeaderboardSceneProps {
+    levelId?: string
+    levelName?: string
+    levelCreator?: string
 }
 
-export default class LeaderboardScene extends Phaser.Scene {
-    private currentLevel = 1
-    private leaderboardData: LeaderboardEntry[] = []
+export default class CommunityLeaderboardScene extends Phaser.Scene {
+    private currentLevelId: string = ''
+    private currentLevelName: string = ''
+    private currentLevelCreator: string = ''
+    private leaderboardData: CommunityLeaderboardEntry[] = []
     private entryTexts: Phaser.GameObjects.Text[] = []
     private entryImages: Phaser.GameObjects.Image[] = []
-    private levelButton!: TextButton
     private currentPage: number = 1
     private entriesPerPage: number = 5
     private totalPages: number = 1
     private paginationControls: Phaser.GameObjects.GameObject[] = []
 
     constructor() {
-        super({ key: SceneKey.Leaderboard })
+        super({ key: SceneKey.CommunityLeaderboard })
     }
 
-    init(data: LeaderboardSceneProps) {
-        if (data.selectedLevel) {
-            this.currentLevel = data.selectedLevel
+    init(data: CommunityLeaderboardSceneProps) {
+        if (data.levelId) {
+            this.currentLevelId = data.levelId
+        }
+        if (data.levelName) {
+            this.currentLevelName = data.levelName
+        }
+        if (data.levelCreator) {
+            this.currentLevelCreator = data.levelCreator
         }
     }
 
@@ -72,23 +81,19 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     createLevelSelection() {
-
-        this.levelButton = new TextButton(
-            this,
-            this.scale.width / 2,
-            280,
-            `${getTranslation('level')} ${this.currentLevel}`,
-            this.nextLevel
-        )
+        // an empty function
     }
 
     createScoreArea() {
+
+        const levelDisplayName = this.currentLevelName || this.currentLevelId
+        const creatorText = this.currentLevelCreator ? ` (+ ${this.currentLevelCreator})` : ''
 
         this.add
             .text(
                 this.scale.width / 2,
                 380,
-                `${getTranslation('level')} ${this.currentLevel} - ${getTranslation('speedrun')}`,
+                `${levelDisplayName}${creatorText}`,
                 {
                     fontFamily: TextureKey.FontHeading,
                     fontSize: '36px',
@@ -98,7 +103,22 @@ export default class LeaderboardScene extends Phaser.Scene {
             .setOrigin(0.5)
 
 
-        const headerY = 440
+        const levelSubtitleName = this.currentLevelName || 'Niveau inconnu'
+        this.add
+            .text(
+                this.scale.width / 2,
+                420,
+                `${levelSubtitleName} - ${getTranslation('speedrun')}`,
+                {
+                    fontFamily: TextureKey.FontBody,
+                    fontSize: '24px',
+                    color: '#666666'
+                }
+            )
+            .setOrigin(0.5)
+
+
+        const headerY = 480
         const centerX = this.scale.width / 2
 
 
@@ -106,8 +126,9 @@ export default class LeaderboardScene extends Phaser.Scene {
             .setAlpha(0.9)
         this.entryImages.push(headerBg as any)
 
+
         this.add
-            .text(centerX - 450, headerY, '#', {
+            .text(centerX - 350, headerY, '#', {
                 fontFamily: TextureKey.FontBody,
                 fontSize: '30px',
                 color: '#ffffff',
@@ -115,7 +136,7 @@ export default class LeaderboardScene extends Phaser.Scene {
             .setOrigin(0.5)
 
         this.add
-            .text(centerX - 250, headerY, '', {
+            .text(centerX - 280, headerY, '', {
                 fontFamily: TextureKey.FontBody,
                 fontSize: '30px',
                 color: '#ffffff',
@@ -131,7 +152,7 @@ export default class LeaderboardScene extends Phaser.Scene {
             .setOrigin(0.5)
 
         this.add
-            .text(centerX + 150, headerY, getTranslation('time'), {
+            .text(centerX + 120, headerY, getTranslation('time'), {
                 fontFamily: TextureKey.FontBody,
                 fontSize: '30px',
                 color: '#ffffff',
@@ -139,7 +160,15 @@ export default class LeaderboardScene extends Phaser.Scene {
             .setOrigin(0.5)
 
         this.add
-            .text(centerX + 400, headerY, getTranslation('date'), {
+            .text(centerX + 250, headerY, 'Coins', {
+                fontFamily: TextureKey.FontBody,
+                fontSize: '30px',
+                color: '#ffffff',
+            })
+            .setOrigin(0.5)
+
+        this.add
+            .text(centerX + 380, headerY, getTranslation('date'), {
                 fontFamily: TextureKey.FontBody,
                 fontSize: '30px',
                 color: '#ffffff',
@@ -148,25 +177,19 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     nextLevel() {
-        this.currentLevel = this.currentLevel >= 10 ? 1 : this.currentLevel + 1
-        this.levelButton.text = `${getTranslation('level')} ${this.currentLevel}`
-        this.updateScoreArea()
-        this.loadLeaderboardData()
+
+
     }
 
     updateScoreArea() {
 
-
         this.entryTexts.forEach(text => text.destroy())
         this.entryImages.forEach(image => image.destroy())
-
-
         this.paginationControls.forEach(control => {
             if (control && control.destroy) {
                 control.destroy()
             }
         })
-
 
         this.entryTexts = []
         this.entryImages = []
@@ -174,23 +197,28 @@ export default class LeaderboardScene extends Phaser.Scene {
         this.currentPage = 1
 
 
-
         this.createScoreArea()
     }
 
     async loadLeaderboardData() {
+        if (!this.currentLevelId) {
+            console.error('Aucun levelId fourni pour le leaderboard communautaire')
+            this.displayEmptyLeaderboard()
+            return
+        }
+
         try {
-            const response = await fetch(`/api/leaderboard/${this.currentLevel}/speedrun`)
+            const response = await fetch(`/api/community-leaderboard/${this.currentLevelId}/speedrun`)
             if (response.ok) {
                 const data = await response.json()
                 this.leaderboardData = data.leaderboard || []
                 this.displayLeaderboard()
             } else {
-                console.error('Erreur chargement leaderboard:', response.statusText)
+                console.error('Erreur chargement leaderboard communautaire:', response.statusText)
                 this.displayEmptyLeaderboard()
             }
         } catch (error) {
-            console.error('Erreur chargement leaderboard:', error)
+            console.error('Erreur chargement leaderboard communautaire:', error)
             this.displayEmptyLeaderboard()
         }
     }
@@ -199,7 +227,7 @@ export default class LeaderboardScene extends Phaser.Scene {
         if (!this.leaderboardData) return
 
         const entries = this.leaderboardData
-        const startY = 480
+        const startY = 520
         const centerX = this.scale.width / 2
         const lineHeight = 60
 
@@ -224,7 +252,7 @@ export default class LeaderboardScene extends Phaser.Scene {
 
             this.entryTexts.push(
                 this.add
-                    .text(centerX - 450, y, `${globalIndex + 1}.`, {
+                    .text(centerX - 350, y, `${globalIndex + 1}.`, {
                         fontFamily: TextureKey.FontBody,
                         fontSize: '28px',
                         color: globalIndex < 3 ? '#ffd700' : '#181425', // Or pour le top 3
@@ -234,10 +262,9 @@ export default class LeaderboardScene extends Phaser.Scene {
 
 
             if (entry.avatar && entry.userId) {
-                this.loadDiscordAvatar(entry.userId, entry.avatar, centerX - 250, y, entry.username, globalIndex)
+                this.loadDiscordAvatar(entry.userId, entry.avatar, centerX - 280, y, entry.username, globalIndex)
             } else {
-
-                this.showDefaultAvatar(centerX - 250, y, entry.username)
+                this.showDefaultAvatar(centerX - 280, y, entry.username)
             }
 
 
@@ -254,7 +281,7 @@ export default class LeaderboardScene extends Phaser.Scene {
 
             this.entryTexts.push(
                 this.add
-                    .text(centerX + 150, y, stringifyTime(entry.time), {
+                    .text(centerX + 120, y, stringifyTime(entry.time), {
                         fontFamily: TextureKey.FontBody,
                         fontSize: '26px',
                         color: globalIndex < 3 ? '#ff6b6b' : '#181425', // Rouge pour le top 3
@@ -263,14 +290,27 @@ export default class LeaderboardScene extends Phaser.Scene {
             )
 
 
-            const date = new Date(entry.date).toLocaleDateString('fr-FR', {
+            this.entryTexts.push(
+                this.add
+                    .text(centerX + 250, y, `${entry.coins}`, {
+                        fontFamily: TextureKey.FontBody,
+                        fontSize: '24px',
+                        color: '#ffd700', // Or pour les coins
+                    })
+                    .setOrigin(0.5)
+            )
+
+
+            const date = new Date(entry.date).toLocaleString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
-                year: '2-digit'
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             })
             this.entryTexts.push(
                 this.add
-                    .text(centerX + 400, y, date, {
+                    .text(centerX + 380, y, date, {
                         fontFamily: TextureKey.FontBody,
                         fontSize: '22px',
                         color: '#666666'
@@ -302,7 +342,6 @@ export default class LeaderboardScene extends Phaser.Scene {
             if (this.paginationControls.length === 0) {
                 this.addPaginationControls()
             } else {
-
                 const pageText = this.paginationControls.find(control =>
                     control instanceof Phaser.GameObjects.Text &&
                     control.text.includes('/')
@@ -312,12 +351,10 @@ export default class LeaderboardScene extends Phaser.Scene {
                     pageText.text = `${this.currentPage} / ${this.totalPages}`
                 }
             }
-        } else {
         }
     }
 
     displayEmptyLeaderboard() {
-
         this.entryTexts.push(
             this.add
                 .text(
@@ -335,8 +372,6 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     addPaginationControls() {
-
-
         const prevButton = new IconButton(this, this.scale.width / 2 - 80, 780, IconsKey.Chevron, () => {
             this.previousPage()
         })
@@ -345,14 +380,11 @@ export default class LeaderboardScene extends Phaser.Scene {
             this.nextPage()
         })
 
-
         prevButton.setScale(0.7)
         nextButton.setScale(0.7)
 
-
         prevButton.setIconFrame(IconsKey.Chevron)
-        prevButton.setScale(-0.7, 0.7) // Retourner horizontalement et garder la taille réduite
-
+        prevButton.setScale(-0.7, 0.7) // Retourner horizontalement
 
         if (this.currentPage === 1) {
             prevButton.setAlpha(0.4)
@@ -363,7 +395,6 @@ export default class LeaderboardScene extends Phaser.Scene {
             nextButton.setAlpha(0.4)
             nextButton.setInteractive(false)
         }
-
 
         const pageText = this.add
             .text(
@@ -378,20 +409,16 @@ export default class LeaderboardScene extends Phaser.Scene {
             )
             .setOrigin(0.5)
 
-
         this.add.existing(prevButton)
         this.add.existing(nextButton)
 
-
         this.paginationControls.push(prevButton, nextButton, pageText)
-
     }
 
     previousPage() {
         if (this.currentPage > 1) {
             this.currentPage--
             this.refreshDisplay()
-        } else {
         }
     }
 
@@ -399,29 +426,21 @@ export default class LeaderboardScene extends Phaser.Scene {
         if (this.currentPage < this.totalPages) {
             this.currentPage++
             this.refreshDisplay()
-        } else {
         }
     }
 
     refreshDisplay() {
-
         this.entryTexts.forEach(text => text.destroy())
         this.entryImages.forEach(image => image.destroy())
         this.entryTexts = []
         this.entryImages = []
 
-
         this.updatePaginationText()
-
-
         this.createScoreArea()
-
-
         this.displayLeaderboard()
     }
 
     updatePaginationText() {
-
         const pageText = this.paginationControls.find(control =>
             control instanceof Phaser.GameObjects.Text &&
             control.text.includes('/')
@@ -431,12 +450,10 @@ export default class LeaderboardScene extends Phaser.Scene {
             pageText.setText(`${this.currentPage} / ${this.totalPages}`)
         }
 
-
         this.updatePaginationButtons()
     }
 
     updatePaginationButtons() {
-
         if (this.paginationControls.length === 0) {
             return
         }
@@ -472,8 +489,6 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     goBack() {
-
-
         this.entryTexts.forEach(text => text.destroy())
         this.entryImages.forEach(image => image.destroy())
         this.paginationControls.forEach(control => {
@@ -482,29 +497,24 @@ export default class LeaderboardScene extends Phaser.Scene {
             }
         })
 
-
         this.entryTexts = []
         this.entryImages = []
         this.paginationControls = []
 
         transitionEventsEmitter.emit(EventKey.TransitionStart)
-        transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.start(SceneKey.Levels), this)
+        transitionEventsEmitter.once(EventKey.TransitionEnd, () => this.scene.start(SceneKey.CommunityLevels), this)
     }
 
     async loadDiscordAvatar(userId: string, avatar: string, x: number, y: number, username: string, index: number) {
         const avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=64`
         const avatarKey = `avatar_${username}_${index}`
 
-
         try {
-
             const response = await fetch(avatarUrl, { mode: 'cors' })
             if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
             const blob = await response.blob()
             const objectUrl = URL.createObjectURL(blob)
-
-
 
             this.load.image(avatarKey, objectUrl)
 
@@ -512,7 +522,6 @@ export default class LeaderboardScene extends Phaser.Scene {
                 const avatarImg = this.add.image(x, y, avatarKey)
                     .setDisplaySize(40, 40)
                     .setOrigin(0.5)
-
 
                 const avatarFrame = this.add.rectangle(x, y, 44, 44, 0xffffff, 1)
                     .setStrokeStyle(3, 0x181425)
@@ -547,8 +556,6 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     destroy() {
-
-
         this.entryTexts.forEach(text => text.destroy())
         this.entryImages.forEach(image => image.destroy())
         this.paginationControls.forEach(control => {
@@ -557,11 +564,9 @@ export default class LeaderboardScene extends Phaser.Scene {
             }
         })
 
-
         this.entryTexts = []
         this.entryImages = []
         this.paginationControls = []
         this.leaderboardData = []
-
     }
 }

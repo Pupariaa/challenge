@@ -24,7 +24,7 @@ const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET
 const USE_DISCORD = !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET)
 
-const DEV_URI_REDIRECT = 'http://localhost:8080/auth/discord/callback'
+const DEV_URI_REDIRECT = 'https://bobby.pupsweb.cc/auth/discord/callback'
 const PROD_URI_REDIRECT = 'https://bobby.pupsweb.cc/auth/discord/callback'
 const DISCORD_CALLBACK_URL = isProduction ? PROD_URI_REDIRECT : DEV_URI_REDIRECT
 
@@ -196,7 +196,7 @@ function updateUserScore(userId, level, score, time, mode = 'classic', statistic
         if (score > currentBest.score || (score === currentBest.score && time < currentBest.time)) {
             progress.scores[level] = { score, time, date: new Date().toISOString() }
             isNewRecord = true
-            console.log(`🎯 Nouveau record classique niveau ${level}: ${score} pièces`)
+            console.log(`Nouveau record classique niveau ${level}: ${score} pièces`)
         }
     }
 
@@ -204,7 +204,7 @@ function updateUserScore(userId, level, score, time, mode = 'classic', statistic
         const nextLevel = level + 1
         if (!progress.unlockedLevels.includes(nextLevel) && nextLevel <= 10) {
             progress.unlockedLevels.push(nextLevel)
-            console.log(`🎉 Niveau ${nextLevel} débloqué pour l'utilisateur ${userId}`)
+            console.log(`Niveau ${nextLevel} débloqué pour l'utilisateur ${userId}`)
         }
 
         progress.lastLevelPlayed = level
@@ -293,7 +293,7 @@ function logSecurityEvent(userId, event, details, suspicious = false) {
     writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2))
 
     if (suspicious) {
-        console.log(`🚨 SUSPICIOUS ACTIVITY: ${event} - User: ${userId}`)
+        console.log(`SUSPICIOUS ACTIVITY: ${event} - User: ${userId}`)
     }
 }
 
@@ -448,13 +448,15 @@ async function startServer() {
             secret: SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
+            proxy: true, // Important pour les proxies
             cookie: {
-                secure: isProduction,
+                secure: false, // Forcer à false pour les tests
                 maxAge: 24 * 60 * 60 * 1000, // 24 heures
                 httpOnly: true,
                 sameSite: 'lax'
             }
         }))
+
 
         app.use(passport.initialize())
         app.use(passport.session())
@@ -469,7 +471,7 @@ async function startServer() {
 
         if (USE_DISCORD) {
             app.get('/auth/discord', (req, res, next) => {
-                console.log('🔐 Route /auth/discord appelée')
+                console.log('Route /auth/discord appelée')
                 passport.authenticate('discord')(req, res, next)
             })
 
@@ -489,14 +491,14 @@ async function startServer() {
             }
 
             app.get('/auth/discord', (req, res) => {
-                console.log('🔧 Mode dev : Simulation de redirection Discord')
+                console.log('Mode dev : Simulation de redirection Discord')
                 req.session.userId = DEV_USER.id
                 logSecurityEvent(DEV_USER.id, 'dev_auth_success', { ip: req.userIp })
                 res.redirect('/?auth=success&dev_mode=true')
             })
 
             app.get('/auth/discord/callback', (req, res) => {
-                console.log('🔧 Mode dev : Simulation de callback Discord')
+                console.log('Mode dev : Simulation de callback Discord')
                 req.session.userId = DEV_USER.id
                 logSecurityEvent(DEV_USER.id, 'dev_auth_success', { ip: req.userIp })
                 res.redirect('/?auth=success&dev_mode=true')
@@ -564,7 +566,7 @@ async function startServer() {
 
             try {
                 const { scores, unlockedLevels, totalPlayTime, lastLevelPlayed, achievements, settings } = req.body
-                console.log('📝 Sauvegarde progression pour', userId, ':', { settings })
+                console.log('Sauvegarde progression pour', userId, ':', { settings })
 
 
                 const existingUser = loadUser(userId)
@@ -591,13 +593,13 @@ async function startServer() {
                         musicEnabled: true,
                         language: 'fr',
                         gameMode: 'classic',
-                        ...existingProgress.settings, // Préserver les settings existants
-                        ...settings // Mettre à jour avec les nouveaux settings
+                        ...existingProgress.settings,
+                        ...settings
                     }
                 }
 
                 saveUserProgress(userId, progress)
-                console.log('✅ Progression sauvegardée:', progress.settings)
+                console.log('Progression sauvegardée:', progress.settings)
                 logSecurityEvent(userId, 'progress_saved', { progress })
                 res.json({ success: true })
             } catch (error) {
@@ -687,6 +689,145 @@ async function startServer() {
             }
         })
 
+
+        app.get('/api/community-leaderboard/:levelId/:mode', (req, res) => {
+            try {
+                const levelId = req.params.levelId
+                const mode = req.params.mode // 'classic' ou 'speedrun'
+
+                if (!levelId || (mode !== 'classic' && mode !== 'speedrun')) {
+                    return res.status(400).json({ error: 'Paramètres invalides' })
+                }
+
+
+                const playsDir = resolve(DATA_DIR, 'plays')
+                if (!existsSync(playsDir)) {
+                    return res.json({ leaderboard: [] })
+                }
+
+                const playFiles = readdirSync(playsDir).filter(file => file.endsWith('.json'))
+                const userScores = new Map() // Map pour stocker le meilleur score par utilisateur
+
+                playFiles.forEach(file => {
+                    try {
+                        const filePath = resolve(playsDir, file)
+                        const playData = JSON.parse(readFileSync(filePath, 'utf-8'))
+
+
+                        if (playData.levelId === levelId &&
+                            playData.gameData &&
+                            playData.gameData.gameMode === mode) {
+
+
+                            let username = 'Joueur anonyme'
+                            let userId = null
+                            let avatar = null
+
+                            if (playData.player && playData.player.isAuthenticated) {
+                                username = playData.player.username || 'Joueur anonyme'
+                                userId = playData.player.userId
+
+
+                                if (userId) {
+                                    const users = loadUsers()
+                                    const user = users[userId]
+                                    if (user && user.avatar) {
+                                        avatar = user.avatar
+                                    }
+                                }
+                            }
+
+
+                            const userKey = userId || `anon_${username}`
+                            const currentScore = {
+                                username: username,
+                                time: playData.gameData.duration,
+                                date: playData.createdAt,
+                                avatar: avatar,
+                                userId: userId,
+                                coins: playData.gameData.coinsCollected || 0
+                            }
+
+
+                            if (!userScores.has(userKey)) {
+                                userScores.set(userKey, currentScore)
+                            } else {
+                                const existingScore = userScores.get(userKey)
+                                let isBetter = false
+
+                                if (mode === 'classic') {
+
+                                    isBetter = currentScore.coins > existingScore.coins ||
+                                        (currentScore.coins === existingScore.coins && currentScore.time < existingScore.time)
+                                } else {
+
+                                    isBetter = currentScore.time < existingScore.time
+                                }
+
+                                if (isBetter) {
+                                    userScores.set(userKey, currentScore)
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Erreur lecture fichier play ${file}:`, error)
+                    }
+                })
+
+
+                const leaderboard = Array.from(userScores.values())
+
+                if (mode === 'classic') {
+                    leaderboard.sort((a, b) => b.coins - a.coins || a.time - b.time)
+                } else {
+                    leaderboard.sort((a, b) => a.time - b.time)
+                }
+
+                res.json({ leaderboard: leaderboard.slice(0, 50) }) // Top 50
+            } catch (error) {
+                console.error('Erreur leaderboard communautaire:', error)
+                res.status(500).json({ error: 'Erreur serveur' })
+            }
+        })
+
+
+        app.get('/api/community-level-plays/:levelId', (req, res) => {
+            try {
+                const levelId = req.params.levelId
+
+                if (!levelId) {
+                    return res.status(400).json({ error: 'LevelId requis' })
+                }
+
+
+                const playsDir = resolve(DATA_DIR, 'plays')
+                if (!existsSync(playsDir)) {
+                    return res.json({ plays: 0 })
+                }
+
+                const playFiles = readdirSync(playsDir).filter(file => file.endsWith('.json'))
+                let playCount = 0
+
+                playFiles.forEach(file => {
+                    try {
+                        const filePath = resolve(playsDir, file)
+                        const playData = JSON.parse(readFileSync(filePath, 'utf-8'))
+
+
+                        if (playData.levelId === levelId && playData.gameData) {
+                            playCount++
+                        }
+                    } catch (error) {
+                        console.error(`Erreur lecture fichier play ${file}:`, error)
+                    }
+                })
+
+                res.json({ plays: playCount })
+            } catch (error) {
+                console.error('Erreur comptage plays niveau communautaire:', error)
+                res.status(500).json({ error: 'Erreur serveur' })
+            }
+        })
 
         app.get('/api/score-token/:level', (req, res) => {
             if (!req.isAuthenticated()) {
@@ -822,14 +963,46 @@ async function startServer() {
             res.json(logs.slice(-100)) // 100 derniers logs
         })
 
+
+        app.post('/api/play-data', (req, res) => {
+            try {
+                const playData = req.body
+                const userId = USE_DISCORD ? (req.user?.id || req.session.userId) : 'dev-user-123'
+
+                if (!playData || !playData.id) {
+                    return res.status(400).json({ error: 'Données de play invalides' })
+                }
+
+
+                const playsDir = resolve(DATA_DIR, 'plays')
+                if (!existsSync(playsDir)) {
+                    mkdirSync(playsDir, { recursive: true })
+                }
+
+
+                const filename = `${userId}_${playData.levelId}_${Date.now()}.json`
+                const filepath = resolve(playsDir, filename)
+
+
+                const fileData = {
+                    ...playData,
+                    serverTimestamp: new Date().toISOString(),
+                    serverVersion: '1.0.22'
+                }
+
+                writeFileSync(filepath, JSON.stringify(fileData, null, 2))
+                console.log(`Play data saved: ${filename}`)
+
+                res.json({ success: true, filename })
+            } catch (error) {
+                console.error('Erreur sauvegarde play data:', error)
+                res.status(500).json({ error: 'Erreur serveur' })
+            }
+        })
+
         if (isProduction) {
-
-            console.log('🚀 Starting Hey Bobby SECURE server with Discord Auth (PRODUCTION)...')
-
             const distPath = resolve(__dirname, 'dist')
             app.use(express.static(distPath))
-
-
             app.get('*', (req, res) => {
 
                 if (req.path.startsWith('/auth/') || req.path.startsWith('/api/')) {
@@ -837,12 +1010,8 @@ async function startServer() {
                 }
                 res.sendFile(join(distPath, 'index.html'))
             })
-
-            console.log(`📦 Serving static files from: ${distPath}`)
+            console.log(`Serving static files from: ${distPath}`)
         } else {
-
-            console.log('🚀 Starting Hey Bobby SECURE server with Discord Auth (DEVELOPMENT)...')
-
             const { createServer } = await import('vite')
 
             const viteServer = await createServer({
@@ -857,31 +1026,20 @@ async function startServer() {
             })
 
             app.use(viteServer.middlewares)
-            console.log('⚡ Vite dev server enabled')
         }
 
         app.listen(port, () => {
-            console.log(`🎮 Hey Bobby Game server running at: http://localhost:${port}`)
-            if (USE_DISCORD) {
-                console.log('🔐 Discord OAuth ENABLED')
-                console.log(`🔗 Discord Callback URL: ${DISCORD_CALLBACK_URL}`)
-            } else {
-                console.log('🔧 Discord OAuth DISABLED (Dev mode)')
-                console.log('👤 Dev user: DevUser#0001')
-            }
-            console.log('🛡️ Anti-cheat system active')
-            console.log('📊 Secure scores system ready')
-            console.log('Press Ctrl+C to stop the server')
+            console.log(`Bobby Game server running at: http://localhost:${port}`)
         })
 
 
         process.on('SIGINT', async () => {
-            console.log('\n🛑 Shutting down server...')
+            console.log('\nhutting down server...')
             process.exit(0)
         })
 
     } catch (error) {
-        console.error('❌ Error starting server:', error)
+        console.error('Error starting server:', error)
         process.exit(1)
     }
 }

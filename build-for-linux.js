@@ -1,64 +1,65 @@
 #!/usr/bin/env node
 
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
-console.log('Build Vite...')
+const isWindows = process.platform === 'win32'
+const deployDir = 'deploy'
+
+console.log('Building Vite...')
 try {
     execSync('npm run build', { stdio: 'inherit' })
-    console.log('Build Vite terminé')
+    console.log('Vite build completed')
 } catch (error) {
-    console.error('Erreur build Vite:', error.message)
+    console.error('Vite build error:', error.message)
     process.exit(1)
 }
 
-console.log('Création du dossier de déploiement...')
+if (existsSync(deployDir)) {
+    console.log('Removing existing deploy directory...')
+    execSync(isWindows ? `rmdir /s /q ${deployDir}` : `rm -rf ${deployDir}`, { stdio: 'inherit' })
+}
+
+console.log('Creating deployment directory...')
 mkdirSync(deployDir, { recursive: true })
 
-const filesToCopy = [
-    'server.js',
-    'package.json',
-    'package-lock.json',
-    '.env'
-]
+const filesToCopy = ['server.js', 'package.json', 'package-lock.json', '.env']
 
-console.log('Copie des fichiers essentiels...')
+console.log('Copying essential files...')
 filesToCopy.forEach(file => {
-    if (existsSync(file)) {
-        copyFileSync(file, join(deployDir, file))
-        console.log(`${file} copié`)
-    } else {
-        console.log(`${file} non trouvé`)
-    }
+    existsSync(file) ? copyFileSync(file, join(deployDir, file)) : console.log(`${file} not found`)
 })
 
-console.log('Copie du dossier dist...')
+console.log('Copying dist directory...')
 if (existsSync('dist')) {
-    execSync(`cp -r dist ${deployDir}/`, { stdio: 'inherit' })
-    console.log('Dossier dist copié')
+    execSync(isWindows ? `xcopy dist ${join(deployDir, 'dist')} /e /i /h /y` : `cp -r dist ${deployDir}/`, { stdio: 'inherit' })
+    console.log('Dist directory copied')
 } else {
-    console.log('Dossier dist non trouvé')
+    console.log('Dist directory not found')
     process.exit(1)
 }
 
-console.log('Copie du dossier data...')
+console.log('Copying data directory...')
 if (existsSync('data')) {
-    execSync(`cp -r data ${deployDir}/`, { stdio: 'inherit' })
-    console.log('Dossier data copié')
+    execSync(isWindows ? `xcopy data ${join(deployDir, 'data')} /e /i /h /y` : `cp -r data ${deployDir}/`, { stdio: 'inherit' })
+    console.log('Data directory copied')
 } else {
-    console.log('Dossier data non trouvé')
+    console.log('Data directory not found')
 }
 
-console.log('Copie de node_modules...')
+console.log('Copying node_modules...')
 if (existsSync('node_modules')) {
-    execSync(`cp -r node_modules ${deployDir}/`, { stdio: 'inherit' })
-    console.log('node_modules copié')
+    execSync(isWindows ? `xcopy node_modules ${join(deployDir, 'node_modules')} /e /i /h /y` : `cp -r node_modules ${deployDir}/`, { stdio: 'inherit' })
+    console.log('Node modules copied')
 } else {
-    console.log('node_modules non trouvé')
+    console.log('Node modules not found')
     process.exit(1)
 }
 
 
 console.log('')
-console.log('🎉 Build terminé !')
+console.log('Build completed!')
+console.log(`Deployment directory: ${deployDir}`)
+console.log('')
+console.log('To deploy:')

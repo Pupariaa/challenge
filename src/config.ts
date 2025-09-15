@@ -7,6 +7,8 @@ import AudioScene from './scenes/audio-scene'
 import SettingsScene from './scenes/settings-scene'
 import LanguageScene from './scenes/language-scene'
 import LevelsScene from './scenes/levels-scene'
+import CommunityLevelsScene from './scenes/community-levels-scene'
+import CommunityLeaderboardScene from './scenes/community-leaderboard-scene'
 import LeaderboardScene from './scenes/leaderboard-scene'
 import HUDScene from './scenes/hud-scene'
 import EditorScene from './scenes/editor-scene'
@@ -50,6 +52,8 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     PreloaderScene,
     IntroScene,
     LevelsScene,
+    CommunityLevelsScene,
+    CommunityLeaderboardScene,
     LeaderboardScene,
     GameScene,
     HUDScene,

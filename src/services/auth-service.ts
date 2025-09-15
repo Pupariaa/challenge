@@ -62,8 +62,14 @@ export interface UserProgress {
 
     unlockedLevels: number[]
 
+
+    unlockedCommunityLevels: string[]
+
     totalPlayTime: number
     lastLevelPlayed: number
+
+
+    lastCommunityLevelPlayed?: string
 
     achievements: string[]
 
@@ -117,12 +123,19 @@ class AuthService {
             if (response.ok) {
                 const data = await response.json()
                 this.updateAuthState(data)
+                console.log('✅ Authentification vérifiée:', data.authenticated ? data.user?.username : 'Non connecté')
+            } else if (response.status === 401) {
+
+                console.log('🔒 Session expirée, déconnexion automatique')
+                this.updateAuthState({ authenticated: false, user: null })
             } else {
+                console.log('❌ Erreur de vérification auth:', response.status)
                 this.updateAuthState({ authenticated: false, user: null })
             }
         } catch (error) {
             console.error('Erreur lors de la vérification de l\'authentification:', error)
-            this.updateAuthState({ authenticated: false, user: null })
+
+
         }
     }
 
@@ -170,24 +183,48 @@ class AuthService {
 
     async logout(): Promise<void> {
         try {
-            await fetch('/auth/logout', {
+            console.log('Tentative de déconnexion...')
+            const response = await fetch('/auth/logout', {
                 method: 'GET',
                 credentials: 'include'
             })
-            this.updateAuthState({ authenticated: false, user: null })
+
+            if (response.ok) {
+                console.log('Déconnexion réussie')
+                this.updateAuthState({ authenticated: false, user: null })
+            } else {
+                console.error('Erreur lors de la déconnexion:', response.status, response.statusText)
+
+                this.updateAuthState({ authenticated: false, user: null })
+            }
         } catch (error) {
             console.error('Erreur lors de la déconnexion:', error)
+
+            this.updateAuthState({ authenticated: false, user: null })
         }
     }
 
 
     private updateAuthState(newState: AuthState): void {
+
+        if (newState.progress) {
+            if (!newState.progress.unlockedCommunityLevels) {
+                newState.progress.unlockedCommunityLevels = []
+            }
+            if (!newState.progress.lastCommunityLevelPlayed) {
+                newState.progress.lastCommunityLevelPlayed = undefined
+            }
+        }
+
         const hasChanged =
             this.authState.authenticated !== newState.authenticated ||
             this.authState.user?.id !== newState.user?.id ||
             JSON.stringify(this.authState.progress) !== JSON.stringify(newState.progress)
 
         this.authState = newState
+
+
+        this.loadCommunityDataLocally()
 
         if (hasChanged) {
             this.notifyListeners()
@@ -270,6 +307,134 @@ class AuthService {
 
     isLevelUnlocked(level: number): boolean {
         return this.authState.progress?.unlockedLevels.includes(level) || level === 1
+    }
+
+
+    isCommunityLevelUnlocked(levelId: string): boolean {
+        return this.authState.progress?.unlockedCommunityLevels.includes(levelId) || false
+    }
+
+    async unlockCommunityLevel(levelId: string): Promise<boolean> {
+        if (!this.authState.progress) return false
+
+        if (!this.authState.progress.unlockedCommunityLevels.includes(levelId)) {
+            this.authState.progress.unlockedCommunityLevels.push(levelId)
+            return await this.saveProgress(this.authState.progress)
+        }
+        return true
+    }
+
+    async saveCommunityLevelScore(levelId: string, time: number, coins: number, gameMode: 'classic' | 'speedrun', speedrunData?: any): Promise<boolean> {
+        console.log('saveCommunityLevelScore appelée avec:', { levelId, time, coins, gameMode })
+
+        if (!this.authState.progress) {
+            console.log('Pas de progress dans authState, retour false')
+            return false
+        }
+
+
+        if (!this.authState.progress.unlockedCommunityLevels) {
+            this.authState.progress.unlockedCommunityLevels = []
+        }
+        if (!this.authState.progress.lastCommunityLevelPlayed) {
+            this.authState.progress.lastCommunityLevelPlayed = undefined
+        }
+
+        const now = new Date().toISOString()
+
+
+        this.authState.progress.scores[levelId] = {
+            score: coins,
+            time: time,
+            date: now
+        }
+        console.log('Score classique sauvegardé:', this.authState.progress.scores[levelId])
+
+
+        if (gameMode === 'speedrun' && speedrunData) {
+            this.authState.progress.speedrunScores[levelId] = speedrunData
+            console.log('Score speedrun sauvegardé:', this.authState.progress.speedrunScores[levelId])
+        }
+
+
+        this.authState.progress.statistics.levelsCompleted += 1
+        this.authState.progress.statistics.coinsCollected += coins
+        this.authState.progress.lastCommunityLevelPlayed = levelId
+        console.log('Statistiques mises à jour:', this.authState.progress.statistics)
+
+        try {
+
+            const { unlockedCommunityLevels, lastCommunityLevelPlayed, ...serverProgress } = this.authState.progress
+
+            console.log('Envoi au serveur (sans propriétés communautaires):', serverProgress)
+            const result = await this.saveProgress(serverProgress as any)
+            console.log('saveProgress résultat:', result)
+
+
+            this.saveCommunityDataLocally(levelId, time, coins, gameMode, speedrunData)
+
+            return result
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde sur le serveur:', error)
+
+            this.saveCommunityDataLocally(levelId, time, coins, gameMode, speedrunData)
+            console.log('Données sauvegardées localement malgré l\'erreur serveur')
+            return true
+        }
+    }
+
+    getCommunityLevelBestScore(levelId: string): { score: number, time: number } | null {
+        const levelScore = this.authState.progress?.scores[levelId]
+        return levelScore ? { score: levelScore.score, time: levelScore.time } : null
+    }
+
+    getCommunityLevelBestSpeedrunTime(levelId: string): number | null {
+        const speedrunScore = this.authState.progress?.speedrunScores[levelId]
+        return speedrunScore ? speedrunScore.time : null
+    }
+
+    /**
+     * Sauvegarde les données des niveaux communautaires localement
+     */
+    private saveCommunityDataLocally(levelId: string, _time: number, _coins: number, _gameMode: 'classic' | 'speedrun', _speedrunData?: any): void {
+        try {
+            const communityData = {
+                unlockedLevels: this.authState.progress?.unlockedCommunityLevels || [],
+                lastLevelPlayed: levelId,
+                scores: this.authState.progress?.scores || {},
+                speedrunScores: this.authState.progress?.speedrunScores || {},
+                statistics: this.authState.progress?.statistics || {}
+            }
+
+            localStorage.setItem('community_progress', JSON.stringify(communityData))
+            console.log('Données communautaires sauvegardées localement:', communityData)
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde locale des données communautaires:', error)
+        }
+    }
+
+    /**
+     * Charge les données des niveaux communautaires depuis le localStorage
+     */
+    private loadCommunityDataLocally(): void {
+        try {
+            const stored = localStorage.getItem('community_progress')
+            if (stored && this.authState.progress) {
+                const communityData = JSON.parse(stored)
+
+
+                this.authState.progress.unlockedCommunityLevels = communityData.unlockedLevels || []
+                this.authState.progress.lastCommunityLevelPlayed = communityData.lastLevelPlayed
+
+
+                this.authState.progress.scores = { ...this.authState.progress.scores, ...communityData.scores }
+                this.authState.progress.speedrunScores = { ...this.authState.progress.speedrunScores, ...communityData.speedrunScores }
+
+                console.log('Données communautaires chargées depuis le localStorage')
+            }
+        } catch (error) {
+            console.error('Erreur lors du chargement des données communautaires:', error)
+        }
     }
 
 

@@ -5,6 +5,10 @@ export function convertPointerToPos(pos: number) {
   return Math.floor(pos / TILE_SIZE) * TILE_SIZE
 }
 
+export function convertPointerToGridPos(pos: number, gridSize: number) {
+  return Math.floor(pos / gridSize) * gridSize
+}
+
 export function convertPlatformsToCells(platforms: LevelPlatform[]) {
   const cells: LevelPlatform[] = []
 

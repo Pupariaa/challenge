@@ -78,4 +78,8 @@ export default class IconButton extends Phaser.GameObjects.Container {
     this.icon.setFrame(frame)
     this.defaultFrame = frame
   }
+
+  setTint(color: number) {
+    this.icon.setTint(color)
+  }
 }

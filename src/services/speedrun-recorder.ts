@@ -23,7 +23,7 @@ class SpeedrunRecorder {
         if (this.isRecording) return
 
         this.isRecording = true
-        this.startTime = Date.now()
+        this.startTime = performance.now()
         this.gameplayData = {
             inputs: [],
             checkpoints: [],
@@ -33,6 +33,7 @@ class SpeedrunRecorder {
             positions: []
         }
 
+        console.log('🎬 Enregistrement speedrun démarré avec précision nanoseconde')
     }
 
     /**
@@ -49,12 +50,26 @@ class SpeedrunRecorder {
             this.positionInterval = null
         }
 
-        const totalTime = Date.now() - this.startTime
+        const totalTime = performance.now() - this.startTime
+
+        console.log('🎬 Avant création SpeedrunData:', {
+            inputsLength: this.gameplayData.inputs.length,
+            checkpointsLength: this.gameplayData.checkpoints.length,
+            deathsLength: this.gameplayData.deaths.length,
+            coinsLength: this.gameplayData.coins.length
+        })
+
         const speedrunData: SpeedrunData = {
             time: totalTime,
             date: new Date().toISOString(),
             gameplay: { ...this.gameplayData }
         }
+
+        console.log('🎬 Enregistrement speedrun terminé:', {
+            duration: totalTime.toFixed(6) + 'ms',
+            events: this.getEventCount(),
+            speedrunDataInputs: speedrunData.gameplay.inputs.length
+        })
 
         return speedrunData
     }
@@ -66,10 +81,12 @@ class SpeedrunRecorder {
         if (!this.isRecording) return
 
         this.gameplayData.inputs.push({
-            timestamp: Date.now() - this.startTime,
+            timestamp: performance.now() - this.startTime,
             action,
             position: { ...position }
         })
+
+        console.log(`🎮 Input enregistré: ${action}, total inputs: ${this.gameplayData.inputs.length}`)
     }
 
     /**
@@ -79,7 +96,7 @@ class SpeedrunRecorder {
         if (!this.isRecording) return
 
         this.gameplayData.checkpoints.push({
-            timestamp: Date.now() - this.startTime,
+            timestamp: performance.now() - this.startTime,
             position: { ...position }
         })
     }
@@ -91,7 +108,7 @@ class SpeedrunRecorder {
         if (!this.isRecording) return
 
         this.gameplayData.deaths.push({
-            timestamp: Date.now() - this.startTime,
+            timestamp: performance.now() - this.startTime,
             position: { ...position },
             cause
         })
@@ -104,7 +121,7 @@ class SpeedrunRecorder {
         if (!this.isRecording) return
 
         this.gameplayData.coins.push({
-            timestamp: Date.now() - this.startTime,
+            timestamp: performance.now() - this.startTime,
             coinId,
             position: { ...position }
         })
@@ -117,7 +134,7 @@ class SpeedrunRecorder {
         if (!this.isRecording) return
 
         this.gameplayData.enemies.push({
-            timestamp: Date.now() - this.startTime,
+            timestamp: performance.now() - this.startTime,
             enemyId,
             position: { ...position },
             action
@@ -135,7 +152,7 @@ class SpeedrunRecorder {
 
             const body = (player.body as Phaser.Physics.Arcade.Body)
             this.gameplayData.positions.push({
-                timestamp: Date.now() - this.startTime,
+                timestamp: performance.now() - this.startTime,
                 x: player.x,
                 y: player.y,
                 velocity: {
@@ -184,11 +201,11 @@ class SpeedrunRecorder {
         return {
             isRecording: this.isRecording,
             eventCount: this.getEventCount(),
-            elapsedTime: this.isRecording ? Date.now() - this.startTime : 0
+            elapsedTime: this.isRecording ? performance.now() - this.startTime : 0
         }
     }
 }
 
-// Instance singleton
+
 export const speedrunRecorder = new SpeedrunRecorder()
 export default speedrunRecorder

@@ -64,6 +64,9 @@ import {
   EditorPlaceAtItemProps,
   EDITOR_TYPE_TOOLS,
   EditorTool,
+  EditorMoveItemProps,
+  EditorMoveItemCompleteProps,
+  EditorUpdateLevelSizeProps,
 } from '../consts/editor'
 import {
   convertFallingBlocksToCells,
@@ -98,11 +101,15 @@ export default class GameScene extends Phaser.Scene {
   private startedFromCheckpoint = false
   private coinsCollected!: number[]
   private isSpeedrunMode!: boolean
+  private isEditorPlayingTestMode!: boolean
   private _audioManager!: AudioScene
   private isTransitionning = false
-  private worldWidth!: number
-  private worldHeight!: number
-  private background!: Phaser.GameObjects.TileSprite
+  public worldWidth!: number
+  public worldHeight!: number
+  private background!: Phaser.GameObjects.Rectangle
+  private backgroundParallax!: Phaser.GameObjects.TileSprite
+  private gridGraphics!: Phaser.GameObjects.Graphics
+  private showGrid: boolean = true
   private background2!: Phaser.GameObjects.TileSprite
   private platforms!: Phaser.GameObjects.Group
   private lava!: Phaser.Physics.Arcade.StaticGroup
@@ -160,6 +167,7 @@ export default class GameScene extends Phaser.Scene {
   private itemsMap!: Map<string, EditorItem>
   private currentItem: EditorItem | null = null
   private currentItemIcon: Phaser.GameObjects.Image | null = null
+  public defaultItemsPositions: Set<string> = new Set()
 
   constructor() {
     super({ key: SceneKey.Game })
@@ -185,7 +193,24 @@ export default class GameScene extends Phaser.Scene {
     if (data.number) {
       this.currentLevel = data.number
       this.isCustomLevel = false
-      this.levelData = levelsData[`level${this.currentLevel}`]
+
+
+      if (data.number === 999) {
+        const communityLevelData = this.registry.get('communityLevelData')
+        const communityLevelId = this.registry.get('communityLevelId')
+        if (communityLevelData && communityLevelId) {
+          this.levelData = communityLevelData
+          this.isCustomLevel = false // Traiter comme un niveau normal
+
+          this.registry.set('communityLevelId', communityLevelId)
+        } else {
+
+          this.levelData = levelsData[`level1`]
+          this.registry.remove('communityLevelId')
+        }
+      } else {
+        this.levelData = levelsData[`level${this.currentLevel}`]
+      }
     } else if (data.level) {
       this.currentLevel = null
       this.levelData = data.level
@@ -223,19 +248,19 @@ export default class GameScene extends Phaser.Scene {
     if (authService.isAuthenticated()) {
       const settings = authService.getSettings()
       this.isSpeedrunMode = settings.gameMode === 'speedrun'
+      this.isEditorPlayingTestMode = settings.gameMode === 'editorPlayingTest'
     } else {
-
-      this.isSpeedrunMode = this.registry.get(DataKey.GameMode) === GameMode.Speedrun
+      const gameMode = this.registry.get(DataKey.GameMode)
+      this.isSpeedrunMode = gameMode === GameMode.Speedrun
+      this.isEditorPlayingTestMode = gameMode === GameMode.EditorPlayingTest
     }
+    console.log('🎮 GameScene - Mode speedrun:', this.isSpeedrunMode, 'Mode editor test:', this.isEditorPlayingTestMode, 'Registry GameMode:', this.registry.get(DataKey.GameMode))
     this._audioManager = this.scene.get(SceneKey.Audio) as AudioScene
 
 
     this.createInfoPanel()
 
 
-    if (this.isSpeedrunMode) {
-      speedrunRecorder.startRecording()
-    }
     this.time.delayedCall(
       500,
       () => {
@@ -247,9 +272,22 @@ export default class GameScene extends Phaser.Scene {
     this.isTransitionning = false
     this.worldWidth = this.levelData.world.width
     this.worldHeight = this.levelData.world.height
-    this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight)
 
-    this.add.rectangle(0, 0, this.worldWidth, this.worldHeight, this.themeColors.background).setOrigin(0)
+
+    const worldCenterOffsetX = this.worldWidth / 2
+    const worldCenterOffsetY = this.worldHeight / 2
+    this.physics.world.setBounds(-worldCenterOffsetX, -worldCenterOffsetY, this.worldWidth, this.worldHeight)
+
+
+    if (this.isCustomLevel && !this.isCustomLevelRun) {
+
+      const mapCenterX = 0 // L'origine de la map est maintenant au centre
+      const mapCenterY = 0
+      this.background = this.add.rectangle(mapCenterX, mapCenterY, this.worldWidth, this.worldHeight, this.themeColors.background).setOrigin(0.5)
+    } else {
+
+      this.background = this.add.rectangle(0, 0, this.cameras.main.width * 10, this.cameras.main.height * 10, this.themeColors.background).setOrigin(0.5)
+    }
 
     this.background2 = this.add
       .tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, this.themeColors.parallax2)
@@ -257,7 +295,7 @@ export default class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setAlpha(this.isCustomLevel && !this.isCustomLevelRun ? 0 : 1)
 
-    this.background = this.add
+    this.backgroundParallax = this.add
       .tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, this.themeColors.parallax)
       .setOrigin(0, 0)
       .setScrollFactor(0)
@@ -277,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
     })
     const platformsPos = this.levelData.platforms || []
     for (let i = 0; i < platformsPos.length; i++) {
-      this.addPlatform(platformsPos[i])
+      this.addPlatform(platformsPos[i], true) // Marquer comme objets par défaut
     }
     this.platformsHitbox = this.physics.add.staticGroup()
     this.createPlatformsHitbox()
@@ -290,7 +328,7 @@ export default class GameScene extends Phaser.Scene {
     })
     const oneWayPlatformsPos = this.levelData.oneWayPlatforms || []
     for (let i = 0; i < oneWayPlatformsPos.length; i++) {
-      this.addOneWayPlatform(oneWayPlatformsPos[i])
+      this.addOneWayPlatform(oneWayPlatformsPos[i], true) // Marquer comme objets par défaut
     }
 
     this.fireballs = this.physics.add.group({
@@ -392,7 +430,7 @@ export default class GameScene extends Phaser.Scene {
     this.addCoins()
 
 
-    if (this.levelData.checkpoint && !this.isSpeedrunMode) {
+    if (this.levelData.checkpoint && !this.isSpeedrunMode && !this.isEditorPlayingTestMode) {
       const pole = this.add.rectangle(0, 0, 20, 240, 0xc0cbdc)
       this.checkpointFlag = this.add
         .triangle(90, pole.height / 2 - 8 - (this.isCheckpointActive ? 120 : 0), 0, -40, 80, 0, 0, 40, 0xf77622)
@@ -517,7 +555,24 @@ export default class GameScene extends Phaser.Scene {
 
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
-    this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
+
+
+    const navigationMargin = Math.max(this.worldWidth, this.worldHeight) * 2 // Marge de 2x la taille max
+    this.cameras.main.setBounds(
+      -navigationMargin,
+      -navigationMargin,
+      navigationMargin * 2,
+      navigationMargin * 2
+    )
+
+
+    this.gridGraphics = this.add.graphics()
+    this.updateGridDisplay()
+
+
+    if (this.isCustomLevel && !this.isCustomLevelRun) {
+      this.updateBackgroundSize()
+    }
 
 
     this.cursors = this.input.keyboard!.createCursorKeys()
@@ -555,6 +610,13 @@ export default class GameScene extends Phaser.Scene {
         editorScene.events.off(EventKey.EditorDeleteCurrent, this.deleteCurrent, this)
         editorScene.events.off(EventKey.EditorRotateCurrent, this.rotateCurrent, this)
         editorScene.events.off(EventKey.EditorChangeDirCurrent, this.changeDirCurrent, this)
+        editorScene.events.off(EventKey.EditorMoveItem, this.moveItem, this)
+        editorScene.events.off(EventKey.EditorMoveItemComplete, this.moveItemComplete, this)
+        editorScene.events.off(EventKey.EditorItemDragging, this.setItemDragging, this)
+        editorScene.events.off(EventKey.EditorUpdateLevelSize, this.updateLevelSize, this)
+        editorScene.events.off(EventKey.EditorToggleHitboxes, this.toggleHitboxes, this)
+        editorScene.events.off(EventKey.EditorToggleGrid, this.toggleGrid, this)
+        editorScene.events.off(EventKey.EditorUpdateBackground, this.updateBackgroundSize, this)
         editorScene.events.off(EventKey.EditorExport, this.exportLevel, this)
         editorScene.events.off(EventKey.EditorImport, this.importLevel, this)
       }
@@ -571,6 +633,13 @@ export default class GameScene extends Phaser.Scene {
       editorScene.events.on(EventKey.EditorDeleteCurrent, this.deleteCurrent, this)
       editorScene.events.on(EventKey.EditorRotateCurrent, this.rotateCurrent, this)
       editorScene.events.on(EventKey.EditorChangeDirCurrent, this.changeDirCurrent, this)
+      editorScene.events.on(EventKey.EditorMoveItem, this.moveItem, this)
+      editorScene.events.on(EventKey.EditorMoveItemComplete, this.moveItemComplete, this)
+      editorScene.events.on(EventKey.EditorItemDragging, this.setItemDragging, this)
+      editorScene.events.on(EventKey.EditorUpdateLevelSize, this.updateLevelSize, this)
+      editorScene.events.on(EventKey.EditorToggleHitboxes, this.toggleHitboxes, this)
+      editorScene.events.on(EventKey.EditorToggleGrid, this.toggleGrid, this)
+      editorScene.events.on(EventKey.EditorUpdateBackground, this.updateBackgroundSize, this)
       editorScene.events.on(EventKey.EditorPlaytest, this.playTest, this)
       editorScene.events.on(EventKey.EditorExport, this.exportLevel, this)
       editorScene.events.on(EventKey.EditorImport, this.importLevel, this)
@@ -580,16 +649,30 @@ export default class GameScene extends Phaser.Scene {
         .setAlpha(0)
         .setDepth(100)
     }
-    if (!this.isCustomLevel || this.isCustomLevelRun) {
+
+    if (!this.isCustomLevel || this.isCustomLevelRun || this.isEditorPlayingTestMode) {
       this.scene.launch(SceneKey.HUD)
     }
 
+
+    if (this.isCustomLevel && !this.isCustomLevelRun) {
+      const justImported = this.registry.get('justImportedMap')
+      if (justImported) {
+        console.log('🎯 Import détecté, téléport vers Bobby dans 2000ms')
+        this.time.delayedCall(2000, () => {
+          console.log('🎯 Tentative de téléport maintenant...')
+          this.teleportToPlayer()
+
+          this.registry.set('justImportedMap', false)
+        })
+      }
+    }
 
     this.scene.launch(SceneKey.Transition)
   }
 
   update(time: number, delta: number) {
-    this.background.tilePositionX = this.cameras.main.scrollX * 0.4
+    this.backgroundParallax.tilePositionX = this.cameras.main.scrollX * 0.4
     this.background2.tilePositionX = this.cameras.main.scrollX * 0.3
 
     const justTriggeredJump =
@@ -599,6 +682,26 @@ export default class GameScene extends Phaser.Scene {
 
     const isGoingLeft = this.cursors.left.isDown || this.keys.Q.isDown || this.touchLeft
     const isGoingRight = this.cursors.right.isDown || this.keys.D.isDown || this.touchRight
+
+
+    if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && speedrunRecorder.isRecordingActive()) {
+      if (justTriggeredJump) {
+        console.log('🎮 Recording jump input')
+        speedrunRecorder.recordInput('jump', { x: this.player.x, y: this.player.y })
+      }
+      if (isGoingLeft) {
+        console.log('🎮 Recording left input')
+        speedrunRecorder.recordInput('move_left', { x: this.player.x, y: this.player.y })
+      }
+      if (isGoingRight) {
+        console.log('🎮 Recording right input')
+        speedrunRecorder.recordInput('move_right', { x: this.player.x, y: this.player.y })
+      }
+    } else if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && !speedrunRecorder.isRecordingActive()) {
+      console.log('⚠️ Mode speedrun/éditeur activé mais enregistrement non actif')
+    } else if (!this.isSpeedrunMode && !this.isEditorPlayingTestMode) {
+      console.log('⚠️ Pas en mode speedrun/éditeur')
+    }
 
 
     if (justTriggeredJump || isGoingLeft || isGoingRight) this.checkFirstMove()
@@ -674,15 +777,20 @@ export default class GameScene extends Phaser.Scene {
     return this.getItemAt(itemPosX, itemPosY)
   }
 
+  getItemAtSnappedPosition(x: number, y: number) {
+    const key = this.getMapKey(x, y)
+    return this.itemsMap.get(key) || null
+  }
+
   selectItem(data: EditorSelectItemProps) {
     const { worldX, worldY } = data
 
-    const item = this.getItem(worldX, worldY)
+    const item = this.getItemAtSnappedPosition(worldX, worldY)
     this.currentItem = item || null
     this.events.emit(EventKey.EditorItemSelected, this.currentItem)
 
     if (item) {
-      this.currentItemIcon?.setAlpha(1).setPosition(convertPointerToPos(worldX), convertPointerToPos(worldY))
+      this.currentItemIcon?.setAlpha(1).setPosition(worldX, worldY)
     } else {
       this.currentItemIcon?.setAlpha(0)
     }
@@ -707,17 +815,165 @@ export default class GameScene extends Phaser.Scene {
 
   deleteCurrent() {
     if (!this.currentItem) return
+
+    const key = this.getMapKey(this.currentItem.data.x, this.currentItem.data.y)
+
+
+    if (this.defaultItemsPositions.has(key)) {
+      return
+    }
+
     this.removeItemAt(this.currentItem.data.x, this.currentItem.data.y)
     this.currentItem = null
     this.currentItemIcon?.setAlpha(0)
     this.events.emit(EventKey.EditorItemSelected, null)
   }
 
-  removeItemAt(x: number, y: number) {
+  moveItem(data: EditorMoveItemProps) {
+    const { item, toX, toY, offsetX, offsetY } = data
+
+    const visualX = toX - offsetX
+    const visualY = toY - offsetY
+
+
+    if (item.object && 'setPosition' in item.object) {
+      item.object.setPosition(visualX, visualY)
+    }
+
+
+    if (this.currentItemIcon && this.currentItem === item) {
+      this.currentItemIcon.setPosition(visualX, visualY)
+    }
+  }
+
+  moveItemComplete(data: EditorMoveItemCompleteProps) {
+    const { item, fromX, fromY } = data
+
+    const oldPosX = fromX
+    const oldPosY = fromY
+    const oldKey = this.getMapKey(oldPosX, oldPosY)
+
+
+    const newPosX = item.data.x
+    const newPosY = item.data.y
+    const newKey = this.getMapKey(newPosX, newPosY)
+
+
+    const wasDefaultItem = this.defaultItemsPositions.has(oldKey)
+
+
+    this.removeItemAt(oldPosX, oldPosY, true)
+
+
+    const placeData: any = { type: item.type }
+
+
+    if ('dir' in item.data && item.data.dir !== undefined) {
+      placeData.dir = item.data.dir
+    }
+    if ('points' in item.data && item.data.points) {
+      placeData.points = item.data.points
+    }
+    if ('startAt' in item.data && item.data.startAt !== undefined) {
+      placeData.startAt = item.data.startAt
+    }
+
+    this.placeItemAt(newPosX, newPosY, placeData, wasDefaultItem)
+
+
+    if (wasDefaultItem) {
+      this.defaultItemsPositions.delete(oldKey)
+      this.defaultItemsPositions.add(newKey)
+    }
+  }
+
+  setItemDragging(isDragging: boolean) {
+    if (this.currentItemIcon) {
+      if (isDragging) {
+
+        this.currentItemIcon.setTint(0x00ff00) // Vert pour indiquer le déplacement
+        this.currentItemIcon.setScale(1.2) // Légèrement plus grand
+      } else {
+
+        this.currentItemIcon.clearTint()
+        this.currentItemIcon.setScale(1)
+      }
+    }
+  }
+
+  updateLevelSize(data: EditorUpdateLevelSizeProps) {
+    const { width, height } = data
+
+
+    this.levelData.world.width = width
+    this.levelData.world.height = height
+
+
+    this.worldWidth = width
+    this.worldHeight = height
+
+
+    const updateNavigationMargin = Math.max(width, height) * 2
+    this.cameras.main.setBounds(
+      -updateNavigationMargin,
+      -updateNavigationMargin,
+      updateNavigationMargin * 2,
+      updateNavigationMargin * 2
+    )
+
+
+    const updateCenterOffsetX = width / 2
+    const updateCenterOffsetY = height / 2
+    this.physics.world.setBounds(-updateCenterOffsetX, -updateCenterOffsetY, width, height)
+  }
+
+  toggleHitboxes(show: boolean) {
+
+    const groups = [
+      this.platforms,
+      this.lava,
+      this.spikes,
+      this.spikyBalls,
+      this.coins,
+      this.oneWayPlatforms,
+      this.cannons,
+      this.fallingBlocks,
+      this.eventBlocks,
+      this.transformers,
+      this.enemies,
+    ]
+
+    groups.forEach(group => {
+      if (group) {
+        group.children.entries.forEach((child: any) => {
+          if (child.body && 'debugShowBody' in child.body) {
+            (child.body as any).debugShowBody = show
+          }
+        })
+      }
+    })
+
+
+    if (this.player && this.player.body && 'debugShowBody' in this.player.body) {
+      (this.player.body as any).debugShowBody = show
+    }
+
+
+    if (this.target && this.target.body && 'debugShowBody' in this.target.body) {
+      (this.target.body as any).debugShowBody = show
+    }
+  }
+
+  removeItemAt(x: number, y: number, allowDefault: boolean = false) {
     const key = this.getMapKey(x, y)
 
     const item = this.itemsMap.get(key)
     if (!item) return
+
+
+    if (this.defaultItemsPositions.has(key) && !allowDefault) {
+      return
+    }
     let itemDataGroup
 
     switch (item.type) {
@@ -798,7 +1054,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  placeItemAt(x: number, y: number, data: EditorPlaceAtItemProps) {
+  placeItemAt(x: number, y: number, data: EditorPlaceAtItemProps, isDefault: boolean = false) {
     const { type, dir, points, startAt } = data
     const offsetX = x + TILE_SIZE / 2
     const offsetY = y + TILE_SIZE / 2
@@ -812,10 +1068,10 @@ export default class GameScene extends Phaser.Scene {
     this.removeItemAt(x, y)
 
     if (type === EditorType.Platform) {
-      this.addPlatform({ x, y, width: TILE_SIZE, height: TILE_SIZE })
+      this.addPlatform({ x, y, width: TILE_SIZE, height: TILE_SIZE }, isDefault)
       this.levelData.platforms.push({ x, y, width: TILE_SIZE, height: TILE_SIZE })
     } else if (type === EditorType.OneWayPlatform) {
-      this.addOneWayPlatform({ x, y, width: TILE_SIZE })
+      this.addOneWayPlatform({ x, y, width: TILE_SIZE }, isDefault)
       this.levelData.oneWayPlatforms = this.levelData.oneWayPlatforms || []
       this.levelData.oneWayPlatforms.push({ x, y, width: TILE_SIZE })
     } else if (type === EditorType.Bobby) {
@@ -857,14 +1113,13 @@ export default class GameScene extends Phaser.Scene {
 
     this.currentItem = this.getItemAt(x, y)
     this.events.emit(EventKey.EditorItemSelected, this.currentItem)
-    this.currentItemIcon?.setAlpha(1).setPosition(convertPointerToPos(x), convertPointerToPos(y))
+    this.currentItemIcon?.setAlpha(1).setPosition(x, y)
   }
 
   placeItem(data: EditorPlaceItemProps) {
     const { worldX, worldY, ...rest } = data
-    const itemPosX = convertPointerToPos(worldX)
-    const itemPosY = convertPointerToPos(worldY)
-    this.placeItemAt(itemPosX, itemPosY, rest as EditorPlaceItemProps)
+
+    this.placeItemAt(worldX, worldY, rest as EditorPlaceItemProps)
   }
 
   async exportLevel() {
@@ -1018,13 +1273,6 @@ export default class GameScene extends Phaser.Scene {
     this._canMove = false
       ; (this.player.body as Phaser.Physics.Arcade.Body).enable = false
 
-
-    if (this.isSpeedrunMode && speedrunRecorder.isRecordingActive()) {
-      const speedrunData = speedrunRecorder.stopRecording()
-
-      this.registry.set('currentSpeedrunData', speedrunData)
-    }
-
     this.events.emit(EventKey.LevelEnd, {
       currentLevel: this.currentLevel,
       startedFromCheckpoint: this.startedFromCheckpoint,
@@ -1071,6 +1319,12 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.stopFollow()
     this.audioManager.playSfx(AudioKey.SfxDeath)
     this.events.emit(EventKey.StopTimer)
+
+
+    if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && speedrunRecorder.isRecordingActive()) {
+      speedrunRecorder.recordDeath({ x: this.player.x, y: this.player.y }, 'fall')
+    }
+
     this.player.die()
 
 
@@ -1137,11 +1391,11 @@ export default class GameScene extends Phaser.Scene {
     this.addMapItem(x, y, { type: EditorType.Coin, object: coin, data })
   }
 
-  addPlatform(data: LevelPlatform) {
+  addPlatform(data: LevelPlatform, isDefault: boolean = false) {
     const { x, y, width, height } = data
     const platform = new Platform(this, x, y, width, height, this.themeColors.platform)
     this.platforms.add(platform)
-    this.addMapItem(x, y, { type: EditorType.Platform, object: platform, data })
+    this.addMapItem(x, y, { type: EditorType.Platform, object: platform, data }, isDefault)
   }
 
   addLavaball(data: LevelLavaBall) {
@@ -1184,23 +1438,131 @@ export default class GameScene extends Phaser.Scene {
     this.addMapItem(x, y, { type: EditorType.Bump, object: bump, data })
   }
 
-  addMapItem(x: number, y: number, item: EditorItem) {
+  addMapItem(x: number, y: number, item: EditorItem, isDefault: boolean = false) {
     if (!this.isCustomLevel) return
 
     const key = this.getMapKey(x, y)
-    if (this.itemsMap.has(key)) return
+
+
+    if (this.itemsMap.has(key)) {
+      const oldItem = this.itemsMap.get(key)
+      if (oldItem && oldItem.object) {
+
+        this.removeItemFromGroup(oldItem)
+      }
+    }
+
     this.itemsMap.set(key, item)
+
+
+    if (isDefault) {
+      this.defaultItemsPositions.add(key)
+    }
   }
 
-  getMapKey(x: number, y: number) {
+  private removeItemFromGroup(item: EditorItem) {
+
+    if (!item.object) return
+
+    switch (item.type) {
+      case EditorType.Platform:
+        this.platforms.remove(item.object, false, false)
+        break
+      case EditorType.OneWayPlatform:
+        this.oneWayPlatforms.remove(item.object, false, false)
+        break
+      case EditorType.Spike:
+        this.spikes.remove(item.object, false, false)
+        break
+      case EditorType.Coin:
+        this.coins.remove(item.object, false, false)
+        break
+      case EditorType.Enemy:
+        this.enemies.remove(item.object, false, false)
+        break
+      case EditorType.FallingBlock:
+        this.fallingBlocks.remove(item.object, false, false)
+        break
+      case EditorType.SpikyBall:
+        this.spikyBalls.remove(item.object, false, false)
+        break
+      case EditorType.Cannon:
+        this.cannons.remove(item.object, false, false)
+        break
+      case EditorType.Bump:
+        this.bumps.remove(item.object, false, false)
+        break
+
+
+
+    }
+  }
+
+  public getMapKey(x: number, y: number) {
     return `${x}_${y}`
   }
 
-  addOneWayPlatform(data: LevelOneWayPlatform) {
+  public getAllObjects(): EditorItem[] {
+    const allObjects: EditorItem[] = []
+
+
+    this.itemsMap.forEach((item) => {
+      allObjects.push(item)
+    })
+
+    return allObjects
+  }
+
+  public getCurrentGridSize(): number {
+
+    const editorScene = this.scene.get(SceneKey.Editor) as any
+    return editorScene?.gridSize || TILE_SIZE
+  }
+
+
+
+  public debugItemsMap() {
+    console.log('=== DEBUG ITEMS MAP ===')
+    console.log(`Total items: ${this.itemsMap.size}`)
+    console.log(`Default items: ${this.defaultItemsPositions.size}`)
+    console.log(`Current grid size: ${this.getCurrentGridSize()}`)
+    console.log(`World size: ${this.worldWidth}x${this.worldHeight}`)
+    console.log(`Current item: ${this.currentItem ? `${this.currentItem.type} at (${this.currentItem.data.x}, ${this.currentItem.data.y})` : 'NONE'}`)
+
+    this.itemsMap.forEach((item, key) => {
+      const objectExists = item.object ? 'EXISTS' : 'MISSING'
+      const isDefault = this.defaultItemsPositions.has(key) ? 'DEFAULT' : 'USER'
+      const objectVisible = item.object && item.object.visible !== false ? 'VISIBLE' : 'HIDDEN'
+      console.log(`Key: ${key}, Type: ${item.type}, Pos: (${item.data.x}, ${item.data.y}), Object: ${objectExists}, Status: ${isDefault}, Visibility: ${objectVisible}`)
+    })
+    console.log('========================')
+  }
+
+  public cleanupPhantomObjects() {
+    console.log('=== CLEANING UP PHANTOM OBJECTS ===')
+    const keysToRemove: string[] = []
+
+    this.itemsMap.forEach((item, key) => {
+      if (!item.object) {
+        console.log(`Removing phantom object: ${key}`)
+        keysToRemove.push(key)
+      }
+    })
+
+    keysToRemove.forEach(key => {
+      this.itemsMap.delete(key)
+      this.defaultItemsPositions.delete(key)
+    })
+
+    console.log(`Cleaned up ${keysToRemove.length} phantom objects`)
+    console.log('=====================================')
+  }
+
+  addOneWayPlatform(data: LevelOneWayPlatform, isDefault: boolean = false) {
     const { x, y, width, points } = data
     const platform = new OneWayPlatform(this, x, y, width, points)
     this.oneWayPlatforms.add(platform)
-    this.addMapItem(x, y, { type: EditorType.OneWayPlatform, object: platform, data })
+    this.addMapItem(x, y, { type: EditorType.OneWayPlatform, object: platform, data }, isDefault)
   }
 
   stickPlayerToPlatform: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, platform: any) => {
@@ -1329,6 +1691,11 @@ export default class GameScene extends Phaser.Scene {
     this.events.emit(EventKey.CollectCoin)
     this.audioManager.playSfx(AudioKey.SfxCoin)
 
+
+    if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && speedrunRecorder.isRecordingActive()) {
+      speedrunRecorder.recordCoin(coin.collectedIndex, { x: coin.x, y: coin.y })
+    }
+
     if (!this.isCustomLevel) {
       this.coinsCollected[coin.collectedIndex] = 1
     }
@@ -1423,6 +1790,11 @@ export default class GameScene extends Phaser.Scene {
     this.checkpointTrigger.active = false
     this.registry.set(DataKey.IsCheckpointActive, true)
     this.registry.set(DataKey.CoinsCollected, [...this.coinsCollected])
+
+
+    if ((this.isSpeedrunMode || this.isEditorPlayingTestMode) && speedrunRecorder.isRecordingActive()) {
+      speedrunRecorder.recordCheckpoint({ x: this.checkpoint.x, y: this.checkpoint.y })
+    }
 
     this.audioManager.playSfx(AudioKey.SfxCheckpoint)
     this.tweens.add({
@@ -1527,10 +1899,174 @@ export default class GameScene extends Phaser.Scene {
       fontFamily: 'Arial'
     }).setScrollFactor(0).setDepth(1000)
 
-    this.add.text(1790, 1050, 'v1.0.22 • 14/09/2025', {
+    this.add.text(1790, 1050, 'v1.1.0 • 14/09/2025', {
       fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'Arial'
     }).setScrollFactor(0).setDepth(1000)
+  }
+
+  updateGridDisplay() {
+    this.gridGraphics.clear()
+
+
+    if (!this.showGrid || !this.isCustomLevel || this.isCustomLevelRun) return
+
+    const camera = this.cameras.main
+
+
+    const viewLeft = camera.scrollX
+    const viewTop = camera.scrollY
+    const viewRight = camera.scrollX + camera.width
+    const viewBottom = camera.scrollY + camera.height
+
+
+    const gridLeft = Math.floor(viewLeft / TILE_SIZE) * TILE_SIZE
+    const gridTop = Math.floor(viewTop / TILE_SIZE) * TILE_SIZE
+    const gridRight = Math.ceil(viewRight / TILE_SIZE) * TILE_SIZE
+    const gridBottom = Math.ceil(viewBottom / TILE_SIZE) * TILE_SIZE
+
+    this.gridGraphics.lineStyle(1, 0x666666, 0.5)
+
+
+    for (let x = gridLeft; x <= gridRight; x += TILE_SIZE) {
+      this.gridGraphics.moveTo(x, gridTop)
+      this.gridGraphics.lineTo(x, gridBottom)
+    }
+
+
+    for (let y = gridTop; y <= gridBottom; y += TILE_SIZE) {
+      this.gridGraphics.moveTo(gridLeft, y)
+      this.gridGraphics.lineTo(gridRight, y)
+    }
+
+    this.gridGraphics.strokePath()
+  }
+
+  toggleGrid(show: boolean) {
+
+    if (!this.isCustomLevel || this.isCustomLevelRun) return
+
+    this.showGrid = show
+    this.updateGridDisplay()
+  }
+
+  updateBackgroundSize() {
+
+    if (!this.isCustomLevel || this.isCustomLevelRun) return
+
+    const bounds = this.calculateMapBounds()
+
+
+    const finalWidth = Math.max(bounds.width, this.worldWidth)
+    const finalHeight = Math.max(bounds.height, this.worldHeight)
+
+
+    const centerX = (bounds.minX + bounds.maxX) / 2
+    const centerY = (bounds.minY + bounds.maxY) / 2
+
+
+    if (this.background) {
+      this.background.setSize(finalWidth, finalHeight)
+      this.background.setPosition(centerX, centerY)
+    }
+  }
+
+  calculateMapBounds() {
+    let minX = 0
+    let minY = 0
+    let maxX = this.worldWidth
+    let maxY = this.worldHeight
+
+
+    const groups = [
+      this.platforms,
+      this.spikes,
+      this.spikyBalls,
+      this.coins,
+      this.oneWayPlatforms,
+      this.cannons,
+      this.fallingBlocks,
+      this.eventBlocks,
+      this.transformers,
+      this.enemies,
+      this.lava,
+      this.lavaballs
+    ]
+
+    groups.forEach(group => {
+      if (group && group.children) {
+        group.children.entries.forEach((child: any) => {
+          if (child.x !== undefined && child.y !== undefined) {
+            const childWidth = child.width || child.displayWidth || TILE_SIZE
+            const childHeight = child.height || child.displayHeight || TILE_SIZE
+
+            minX = Math.min(minX, child.x - childWidth / 2)
+            minY = Math.min(minY, child.y - childHeight / 2)
+            maxX = Math.max(maxX, child.x + childWidth / 2)
+            maxY = Math.max(maxY, child.y + childHeight / 2)
+          }
+        })
+      }
+    })
+
+
+    const margin = TILE_SIZE * 2
+    return {
+      minX: minX - margin,
+      minY: minY - margin,
+      maxX: maxX + margin,
+      maxY: maxY + margin,
+      width: maxX - minX + margin * 2,
+      height: maxY - minY + margin * 2
+    }
+  }
+
+  getObjectCounts() {
+    return {
+      platforms: (this.levelData.platforms || []).length,
+      fallingBlocks: (this.levelData.fallingBlocks || []).length,
+      oneWayPlatforms: (this.levelData.oneWayPlatforms || []).length,
+      spikes: (this.levelData.spikes || []).length,
+      spikyBalls: (this.levelData.spikyBalls || []).length,
+      cannons: (this.levelData.cannons || []).length,
+      enemies: (this.levelData.enemies || []).length,
+      bumps: (this.levelData.bumps || []).length,
+      coins: (this.levelData.coins || []).length
+    }
+  }
+
+  teleportToPlayer() {
+    console.log('🎮 GameScene: Tentative de téléport vers Bobby...', {
+      player: !!this.player,
+      playerX: this.player?.x,
+      playerY: this.player?.y,
+      cameraX: this.cameras.main.scrollX,
+      cameraY: this.cameras.main.scrollY
+    })
+
+    if (this.player && this.player.x !== undefined && this.player.y !== undefined) {
+      const playerX = this.player.x
+      const playerY = this.player.y
+      console.log('🎮 GameScene: Position de Bobby trouvée:', { x: playerX, y: playerY })
+
+
+      const editorScene = this.scene.get(SceneKey.Editor) as any
+      if (editorScene && editorScene.gameCamera) {
+        editorScene.gameCamera.centerOn(playerX, playerY)
+        console.log('🎮 GameScene: Caméra de l\'EditorScene centrée sur Bobby - Nouvelle position:', {
+          x: editorScene.gameCamera.scrollX,
+          y: editorScene.gameCamera.scrollY
+        })
+      } else {
+        console.log('🎮 GameScene: EditorScene ou gameCamera non trouvé')
+      }
+    } else {
+      console.log('🎮 GameScene: Bobby pas encore chargé, réessai dans 200ms')
+
+      this.time.delayedCall(200, () => {
+        this.teleportToPlayer()
+      })
+    }
   }
 }

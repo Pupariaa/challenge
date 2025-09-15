@@ -63,11 +63,12 @@ export default class LevelsScene extends Phaser.Scene {
 
     new IconButton(this, 80, 80, IconsKey.Back, () => this.goToScreen(SceneKey.Intro))
     new IconButton(this, 220, 80, IconsKey.Language, this.goToLanguage)
+    new IconButton(this, 360, 80, IconsKey.Community, () => this.goToScreen(SceneKey.CommunityLevels))
     new IconButton(this, 480, 80, IconsKey.Edit, () => this.goToScreen(SceneKey.Game, { level: customLevel }))
 
 
 
-    this.leaderboardButton = new IconButton(this, 350, 80, IconsKey.Leaderboard, this.goToLeaderboard)
+    this.leaderboardButton = new IconButton(this, 600, 80, IconsKey.Leaderboard, this.goToLeaderboard)
     this.leaderboardButton.setAlpha(0.5)
     this.leaderboardButton.setInteractive(false)
 
@@ -145,8 +146,13 @@ export default class LevelsScene extends Phaser.Scene {
           .setOrigin(0.5)
       }
 
+
       this.add
-        .text(x, y, (i + 1).toString(), { fontFamily: TextureKey.FontHeading, color: '#ffffff', fontSize: '64px' })
+        .text(x, y, (i + 1).toString(), {
+          fontFamily: TextureKey.FontHeading,
+          color: '#ffffff',
+          fontSize: '64px'
+        })
         .setOrigin(0.5)
 
 
@@ -189,7 +195,7 @@ export default class LevelsScene extends Phaser.Scene {
 
       const levelInfo = getLevelInfo(level)
       if (levelInfo) {
-        this.selectedLevel = null // Réinitialiser la sélection
+        this.selectedLevel = null
         this.updateLeaderboardButton()
         this.clearHighlight()
         this.goToScreen(SceneKey.Game, { number: level })
@@ -223,10 +229,10 @@ export default class LevelsScene extends Phaser.Scene {
     if (selectedButton) {
       const tintableButton = selectedButton as any
       if (typeof tintableButton.clearTint === 'function') {
-        tintableButton.clearTint() // S'assurer qu'il n'y a pas de tint précédent
-        tintableButton.setTint(0xffdd44) // Jaune pour la sélection
+        tintableButton.clearTint()
+        tintableButton.setTint(0xffdd44)
       } else if (typeof tintableButton.setTint === 'function') {
-        tintableButton.setTint(0xffdd44) // Jaune pour la sélection
+        tintableButton.setTint(0xffdd44)
       } else {
 
         selectedButton.setFillStyle(0xffdd44)
@@ -238,9 +244,9 @@ export default class LevelsScene extends Phaser.Scene {
 
     this.levelButtons.forEach((button) => {
       if ('clearTint' in button && typeof button.clearTint === 'function') {
-        button.clearTint() // Enlever le tint
+        button.clearTint()
       } else if ('setTint' in button && typeof button.setTint === 'function') {
-        button.setTint(0xffffff) // Couleur normale
+        button.setTint(0xffffff)
       } else {
 
         button.setFillStyle(this.theme.button)

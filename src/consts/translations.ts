@@ -4,12 +4,12 @@ export enum Language {
 }
 
 export interface Translations {
-    // Intro scene
+
     title: string
     pressSpaceToStart: string
     touchToStart: string
 
-    // Settings
+
     settings: string
     gameMode: string
     classic: string
@@ -27,7 +27,7 @@ export interface Translations {
     deaths: string
     coinsCollected: string
 
-    // Leaderboard
+
     leaderboard: string
     player: string
     score: string
@@ -37,15 +37,26 @@ export interface Translations {
     noScoresYet: string
     errorLoadingLeaderboard: string
 
-    // HUD
+
     pause: string
     play: string
 
-    // Levels
+
     levels: string
     levelEditor: string
+    communityLevels: string
+    comingSoon: string
 
-    // Loading
+
+    levelName: string
+    creator: string
+    numberOfPlays: string
+    action: string
+    noLevelsAvailable: string
+    unknownCreator: string
+    unnamedLevel: string
+
+
     loading: string
 }
 
@@ -82,6 +93,15 @@ const translations: Record<Language, Translations> = {
         play: 'Reprendre',
         levels: 'MONDE',
         levelEditor: 'Éditeur de niveaux',
+        communityLevels: 'NIVEAUX COMMUNAUTAIRES',
+        comingSoon: 'Bientôt disponible',
+        levelName: 'Nom du niveau',
+        creator: 'Créateur',
+        numberOfPlays: 'Nombre de plays',
+        action: 'Action',
+        noLevelsAvailable: 'Aucun niveau disponible pour cette difficulté',
+        unknownCreator: 'Créateur inconnu',
+        unnamedLevel: 'Niveau sans nom',
         loading: 'Chargement...',
     },
     [Language.English]: {
@@ -116,6 +136,15 @@ const translations: Record<Language, Translations> = {
         play: 'Resume',
         levels: 'WORLD',
         levelEditor: 'Level Editor',
+        communityLevels: 'COMMUNITY LEVELS',
+        comingSoon: 'Coming Soon',
+        levelName: 'Level Name',
+        creator: 'Creator',
+        numberOfPlays: 'Number of Plays',
+        action: 'Action',
+        noLevelsAvailable: 'No levels available for this difficulty',
+        unknownCreator: 'Unknown Creator',
+        unnamedLevel: 'Unnamed Level',
         loading: 'Loading...',
     },
 }

@@ -3,6 +3,7 @@ import TextureKey from './texture-key'
 export enum GameMode {
   Classic = 'classic',
   Speedrun = 'speedrun',
+  EditorPlayingTest = 'editorPlayingTest',
 }
 
 export interface PlayerDataLevel {
@@ -14,7 +15,7 @@ export interface PlayerDataLevel {
 }
 
 export interface DataLevels {
-  [key: string]: DataLevel
+  [key: string]: CommunityLevelData
 }
 
 export interface DataLevel {
@@ -38,6 +39,15 @@ export interface DataLevel {
   cannons?: LevelCannon[]
   bumps?: LevelBump[]
   eventBlocks?: LevelEventBlock[]
+}
+
+
+export interface CommunityLevelData extends DataLevel {
+  creators: string[]
+  createdAt: string
+  name: string
+  difficulty: string
+  level_number: number | null
 }
 
 export enum Theme {
@@ -85,6 +95,12 @@ export const WORLD_THEMES: Array<WorldTheme> = [
     button: 0x3e2731,
   },
 ]
+
+export const COMMUNITY_THEME: WorldTheme = {
+  gridTexture: TextureKey.Grid,
+  dir: new Phaser.Math.Vector2(-0.3, 0.3),
+  button: 0x4a148c,
+}
 
 export interface LevelPosition {
   x: number

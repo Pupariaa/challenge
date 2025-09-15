@@ -10,7 +10,9 @@
     "build": "vite build",
     "build:prod": "npm run build && npm run start:prod",
     "build:deploy": "node scripts/build-deploy.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:community-index": "node src/scripts/generate-community-index.cjs",
+    "create:community-level": "node src/scripts/create-community-level.cjs"
   },
   "dependencies": {
     "@esbuild/linux-arm64": "^0.25.9",
@@ -26,6 +28,7 @@
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4",
     "phaser": "^3.87.0",
+    "uuid": "^13.0.0",
     "webfontloader": "^1.6.28"
   },
   "devDependencies": {
