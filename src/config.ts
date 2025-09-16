@@ -15,6 +15,7 @@ import EditorScene from './scenes/editor-scene'
 import GameScene from './scenes/game-scene'
 import SavedLevelsScene from './scenes/saved-levels-scene'
 import LevelCompleteScene from './scenes/level-complete-scene'
+import EditorCompleteScene from './scenes/editor-complete-scene'
 
 export const GameConfig: Phaser.Types.Core.GameConfig = {
   title: 'Hey Bobby',
@@ -62,6 +63,7 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     EditorScene,
     SavedLevelsScene,
     LevelCompleteScene,
+    EditorCompleteScene,
     TransitionScene,
     AudioScene,
     SettingsScene,

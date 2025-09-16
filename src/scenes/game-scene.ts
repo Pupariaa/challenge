@@ -1196,14 +1196,99 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  recreateAllObjects() {
+    console.log('🎮 GameScene: Recréation forcée de tous les objets')
+
+    // Supprimer tous les objets existants
+    this.platforms.clear(true, true)
+    this.spikes.clear(true, true)
+    this.spikyBalls.clear(true, true)
+    this.coins.clear(true, true)
+    this.oneWayPlatforms.clear(true, true)
+    this.cannons.clear(true, true)
+    this.fallingBlocks.clear(true, true)
+    this.eventBlocks.clear(true, true)
+    this.bumps.clear(true, true)
+    this.enemies.clear(true, true)
+
+    // Recréer tous les objets depuis levelData (comme dans create())
+    const platformsPos = this.levelData.platforms || []
+    for (let i = 0; i < platformsPos.length; i++) {
+      this.addPlatform(platformsPos[i], false)
+    }
+
+    const spikesPos = this.levelData.spikes || []
+    for (let i = 0; i < spikesPos.length; i++) {
+      this.addSpikes(spikesPos[i])
+    }
+
+    const spikyBallsPos = this.levelData.spikyBalls || []
+    for (let i = 0; i < spikyBallsPos.length; i++) {
+      this.addSpikyBall(spikyBallsPos[i])
+    }
+
+    const coinsPos = this.levelData.coins || []
+    for (let i = 0; i < coinsPos.length; i++) {
+      this.addCoin(coinsPos[i])
+    }
+
+    const oneWayPlatformsPos = this.levelData.oneWayPlatforms || []
+    for (let i = 0; i < oneWayPlatformsPos.length; i++) {
+      this.addOneWayPlatform(oneWayPlatformsPos[i], false)
+    }
+
+    const cannonsPos = this.levelData.cannons || []
+    for (let i = 0; i < cannonsPos.length; i++) {
+      this.addCannon(cannonsPos[i])
+    }
+
+    const fallingBlocksPos = this.levelData.fallingBlocks || []
+    for (let i = 0; i < fallingBlocksPos.length; i++) {
+      this.addFallingBlock(fallingBlocksPos[i])
+    }
+
+    const eventBlocksPos = this.levelData.eventBlocks || []
+    for (let i = 0; i < eventBlocksPos.length; i++) {
+      this.addEventBlock(this.eventBlocks, eventBlocksPos[i])
+    }
+
+    const bumpsPos = this.levelData.bumps || []
+    for (let i = 0; i < bumpsPos.length; i++) {
+      this.addBump(bumpsPos[i])
+    }
+
+    const enemiesPos = this.levelData.enemies || []
+    for (let i = 0; i < enemiesPos.length; i++) {
+      this.addEnemy(enemiesPos[i])
+    }
+
+    // Recalculer les hitboxes
+    this.createPlatformsHitbox()
+
+    console.log('✅ GameScene: Tous les objets recréés')
+  }
+
   createPlatformsHitbox() {
     const platforms = getPlatformsFromGrid(this.levelData.platforms)
 
-    this.platformsHitbox.clear(true, true)
+    // Vérifier que platformsHitbox est initialisé et que physics est disponible
+    if (!this.platformsHitbox && this.physics) {
+      this.platformsHitbox = this.physics.add.staticGroup()
+    }
+
+    // Vérifier que platformsHitbox existe avant d'appeler clear
+    if (this.platformsHitbox && this.platformsHitbox.clear) {
+      this.platformsHitbox.clear(true, true)
+    } else {
+      console.warn('⚠️ GameScene: platformsHitbox non disponible, skip createPlatformsHitbox')
+      return
+    }
     platforms.forEach((col) => {
       const { x, y, width, height } = col
       const platform = this.add.rectangle(x, y, width, height, 0xbe4a2f, 0).setOrigin(0)
-      this.platformsHitbox.add(platform)
+      if (this.platformsHitbox && this.platformsHitbox.add) {
+        this.platformsHitbox.add(platform)
+      }
     })
   }
 
@@ -1336,6 +1421,16 @@ export default class GameScene extends Phaser.Scene {
     this.trackProgression(ProgressionEventType.Complete)
 
     this.player.teleportTo(this.target, () => {
+      // Si on est en mode EditorPlayingTest, utiliser EditorCompleteScene
+      if (this.isEditorPlayingTestMode) {
+        console.log('🎮 GameScene: Fin de niveau en mode testPlay - Lancement EditorCompleteScene')
+        // Arrêter la HUD du testPlay avant d'afficher EditorCompleteScene
+        this.scene.stop(SceneKey.HUD)
+        this.scene.start(SceneKey.EditorComplete)
+        return
+      }
+
+      // Sinon, utiliser LevelCompleteScene normal
       const levelStats = this.getLevelStats()
       console.log('🎮 GameScene: Lancement LevelCompleteScene avec stats:', levelStats)
 

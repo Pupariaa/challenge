@@ -77,8 +77,12 @@ export default class EditorScene extends Phaser.Scene {
     this.isDrawing = false
     this.scene.pause(SceneKey.Game)
     this.gameScene = this.scene.get(SceneKey.Game) as GameScene
-    this.gameCamera = this.gameScene.cameras.main
-    this.gameCamera.stopFollow()
+    if (this.gameScene) {
+      this.gameCamera = this.gameScene.cameras.main
+      if (this.gameCamera) {
+        this.gameCamera.stopFollow()
+      }
+    }
 
 
     this.time.delayedCall(100, () => {
@@ -350,7 +354,10 @@ export default class EditorScene extends Phaser.Scene {
     this.levelSizePanel.add([this.choiceLevelWidth, this.choiceLevelHeight])
     this.levelSizePanel.setVisible(true)
 
-    this.loadDefaultLevelIfNeeded()
+    // Délai plus long pour laisser GameScene se stabiliser avant de charger la map temporaire
+    this.time.delayedCall(500, () => {
+      this.loadDefaultLevelIfNeeded()
+    })
 
     const btnResetZoom = new IconButton(this, 1840, 580, IconsKey.RestoreZoom, () => {
       this.resetZoom()
@@ -757,6 +764,14 @@ export default class EditorScene extends Phaser.Scene {
         gameScene.timerStarted = false
         console.log('✏️ EditorScene: Timer reset lors du retour à l\'éditeur')
       }
+
+      // Charger la map temporaire si elle existe (retour depuis testPlay)
+      this.time.delayedCall(100, () => {
+        if (this.loadTemporaryLevelIfExists()) {
+          console.log('✏️ EditorScene: Map temporaire chargée au retour de testPlay')
+        }
+        this.teleportToPlayer()
+      })
     } else {
       this.events.emit(EventKey.EditorPlaytest)
       this.showGrid = false
@@ -1010,30 +1025,49 @@ export default class EditorScene extends Phaser.Scene {
     this.events.emit(EventKey.EditorUpdateBackground)
   }
 
-
-
   loadDefaultLevelIfNeeded(): void {
+    // Ne pas charger la map temporaire pendant le testPlay
+    const isCustomLevelRun = this.registry.get(DataKey.IsCustomLevelRun)
+    if (isCustomLevelRun) {
+      console.log('✏️ EditorScene: Mode testPlay, pas de chargement de map temporaire')
+      return
+    }
+
+    // Vérifier d'abord s'il y a une map temporaire à charger
+    if (this.loadTemporaryLevelIfExists()) {
+      console.log('✏️ EditorScene: Map temporaire chargée')
+      return
+    }
+
+    // Sinon, vérifier s'il y a un niveau sauvegardé
     const currentEditorId = localStorage.getItem('currentEditorId')
-
-    if (!currentEditorId) {
-      const defaultLevel = this.getDefaultLevel()
-
+    if (currentEditorId) {
+      console.log('✏️ EditorScene: Chargement du niveau sauvegardé:', currentEditorId)
+      // Charger le niveau sauvegardé
       this.time.delayedCall(200, () => {
-        this.registry.set('loadingDefaultLevel', true)
-        this.events.emit(EventKey.EditorImport, defaultLevel)
-        this.registry.set('loadingDefaultLevel', false)
+        this.loadSavedLevel(currentEditorId)
       })
+      return
+    }
 
-      if (defaultLevel && typeof defaultLevel === 'object' && 'world' in defaultLevel) {
-        const world = defaultLevel.world as any
-        if (world && typeof world.width === 'number' && typeof world.height === 'number') {
-          this.levelWidth = world.width
-          this.levelHeight = world.height
+    // Sinon, charger le niveau par défaut
+    const defaultLevel = this.getDefaultLevel()
 
-          if (this.choiceLevelWidth && this.choiceLevelHeight) {
-            this.choiceLevelWidth.value = this.levelWidth
-            this.choiceLevelHeight.value = this.levelHeight
-          }
+    this.time.delayedCall(200, () => {
+      this.registry.set('loadingDefaultLevel', true)
+      this.events.emit(EventKey.EditorImport, defaultLevel)
+      this.registry.set('loadingDefaultLevel', false)
+    })
+
+    if (defaultLevel && typeof defaultLevel === 'object' && 'world' in defaultLevel) {
+      const world = defaultLevel.world as any
+      if (world && typeof world.width === 'number' && typeof world.height === 'number') {
+        this.levelWidth = world.width
+        this.levelHeight = world.height
+
+        if (this.choiceLevelWidth && this.choiceLevelHeight) {
+          this.choiceLevelWidth.value = this.levelWidth
+          this.choiceLevelHeight.value = this.levelHeight
         }
       }
     }
@@ -1066,6 +1100,11 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   quit() {
+    const editorCompleteScene = this.scene.get(SceneKey.EditorComplete)
+    if (editorCompleteScene && editorCompleteScene.scene.isActive()) {
+      editorCompleteScene.scene.stop()
+    }
+
     localStorage.removeItem('currentEditorId')
     this.registry.set(DataKey.GameMode, GameMode.Classic)
 
@@ -1093,7 +1132,92 @@ export default class EditorScene extends Phaser.Scene {
     )
   }
 
+  saveTemporaryLevel() {
+    try {
+      const gameScene = this.scene.get(SceneKey.Game) as any
+      const levelData = gameScene.levelData
+
+      const temporaryLevelData = {
+        ...levelData,
+        name: 'Map temporaire',
+        lastModified: new Date().toISOString()
+      }
+
+      const base64Data = btoa(JSON.stringify(temporaryLevelData))
+      localStorage.setItem('temporary_level', base64Data)
+
+      console.log('✅ Map temporaire sauvegardée avant testPlay')
+    } catch (error) {
+      console.warn('⚠️ Impossible de sauvegarder la map temporaire:', error)
+    }
+  }
+
+  loadSavedLevel(currentEditorId: string) {
+    try {
+      const base64Data = localStorage.getItem(`level_${currentEditorId}`)
+      if (base64Data) {
+        const levelData = JSON.parse(atob(base64Data))
+        console.log('✏️ EditorScene: Chargement du niveau sauvegardé:', levelData.name)
+
+        this.events.emit(EventKey.EditorImport, levelData)
+
+        // Mettre à jour les dimensions
+        if (levelData.world) {
+          this.levelWidth = levelData.world.width
+          this.levelHeight = levelData.world.height
+
+          if (this.choiceLevelWidth && this.choiceLevelHeight) {
+            this.choiceLevelWidth.value = this.levelWidth
+            this.choiceLevelHeight.value = this.levelHeight
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement du niveau sauvegardé:', error)
+    }
+  }
+
+  loadTemporaryLevelIfExists() {
+    try {
+      const temporaryData = localStorage.getItem('temporary_level')
+      if (temporaryData) {
+        const levelData = JSON.parse(atob(temporaryData))
+        console.log('✏️ EditorScene: Chargement de la map temporaire:', levelData.name)
+
+        // Charger la map temporaire et forcer la recréation visuelle des objets
+        const gameScene = this.scene.get(SceneKey.Game) as any
+        if (gameScene && gameScene.importLevel) {
+          // Utiliser importLevel SANS restart pour éviter les problèmes
+          gameScene.importLevel(levelData, false, true)
+
+          // Forcer manuellement la recréation des objets
+          this.time.delayedCall(100, () => {
+            if (gameScene.recreateAllObjects) {
+              gameScene.recreateAllObjects()
+            }
+          })
+        } else {
+          // Fallback : utiliser l'ancienne méthode
+          this.events.emit(EventKey.EditorImport, levelData)
+        }
+
+        // Supprimer la map temporaire
+        localStorage.removeItem('temporary_level')
+        console.log('✅ Map temporaire chargée et supprimée')
+
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement de la map temporaire:', error)
+      localStorage.removeItem('temporary_level')
+      return false
+    }
+  }
+
   playRun() {
+    // Sauvegarder temporairement la map actuelle avant testPlay
+    this.saveTemporaryLevel()
 
     this.isEditing = false
     this.events.emit(EventKey.EditorToggle, this.isEditing)
