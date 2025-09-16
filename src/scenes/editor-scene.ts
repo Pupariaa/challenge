@@ -42,6 +42,8 @@ export default class EditorScene extends Phaser.Scene {
   private cannonDir!: number
   private isCustomLevelRun!: boolean
   private spaceKey: Phaser.Input.Keyboard.Key | undefined
+  private toastText!: Phaser.GameObjects.Text
+  private toastBg!: Phaser.GameObjects.Rectangle
   private currentItem: EditorItem | null = null
   private moveX!: number
   private moveY!: number
@@ -418,6 +420,42 @@ export default class EditorScene extends Phaser.Scene {
       color: '#aaaaaa',
       fontFamily: 'Arial'
     }).setScrollFactor(0).setDepth(1000)
+
+    this.createToast()
+  }
+
+  createToast() {
+    this.toastBg = this.add.rectangle(960, 100, 300, 50, 0x2a2a2a)
+    this.toastBg.setStrokeStyle(2, 0x4a4a4a)
+    this.toastBg.setScrollFactor(0).setDepth(2000)
+    this.toastBg.setVisible(false)
+
+    this.toastText = this.add.text(960, 100, '', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
+    })
+    this.toastText.setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+    this.toastText.setVisible(false)
+  }
+
+  showToast(message: string, duration: number = 2000) {
+    this.toastText.setText(message)
+    this.toastText.setVisible(true)
+    this.toastBg.setVisible(true)
+
+    this.tweens.add({
+      targets: [this.toastText, this.toastBg],
+      alpha: 0,
+      duration: 500,
+      delay: duration,
+      onComplete: () => {
+        this.toastText.setVisible(false)
+        this.toastBg.setVisible(false)
+        this.toastText.setAlpha(1)
+        this.toastBg.setAlpha(1)
+      }
+    })
   }
 
   handleShutdown() {
@@ -479,6 +517,8 @@ export default class EditorScene extends Phaser.Scene {
         const base64Data = btoa(JSON.stringify(levelDataWithName))
         localStorage.setItem(`level_${newId}`, base64Data)
         localStorage.setItem('currentEditorId', newId)
+
+        this.showToast(`Niveau "${levelName.trim()}" sauvegardé !`)
       } else {
         const levelDataWithName = {
           ...levelData,
@@ -488,9 +528,12 @@ export default class EditorScene extends Phaser.Scene {
 
         const base64Data = btoa(JSON.stringify(levelDataWithName))
         localStorage.setItem(`level_${currentEditorId}`, base64Data)
+
+        this.showToast(`Niveau "${levelDataWithName.name}" mis à jour !`)
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error)
+      this.showToast('Erreur lors de la sauvegarde', 3000)
     }
   }
 
@@ -1115,7 +1158,7 @@ export default class EditorScene extends Phaser.Scene {
 
       const temporaryLevelData = {
         ...levelData,
-        name: 'Map temporaire',
+        name: levelData.name || 'Map temporaire',
         lastModified: new Date().toISOString(),
         originalEditorId: currentEditorId
       }
