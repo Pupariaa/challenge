@@ -96,6 +96,8 @@ export default class IntroScene extends Phaser.Scene {
 
     timeline.play()
 
+    this.createDisclaimerText()
+
     this.input.keyboard!.on('keydown-SPACE', this.startGame, this)
     this.input.on('pointerdown', this.startGame, this)
 
@@ -197,6 +199,85 @@ export default class IntroScene extends Phaser.Scene {
         }
       })
     }
+  }
+
+  private createDisclaimerText() {
+    const disclaimerBg = this.add.rectangle(960, 260, 800, 130, 0x000000, 0.7)
+    disclaimerBg.setStrokeStyle(3, 0x4ecdc4)
+    disclaimerBg.setDepth(2000)
+
+    const disclaimerTitle = this.add.text(960, 220, 'PROJET D\'APPRENTISSAGE - NON OFFICIEL', {
+      fontSize: '20px',
+      color: '#fc3f3f',
+      fontFamily: TextureKey.FontHeading,
+      align: 'center'
+    }).setOrigin(0.5, 0.5).setDepth(2001)
+
+    const disclaimerText = this.add.text(960, 260, 'Ceci est un fork éducatif par un fan pour apprendre Phaser.\nLe jeu original reste la référence absolue et officielle.\nUtilisez cette version uniquement pour découvrir l\'éditeur.', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: TextureKey.FontBody,
+      align: 'center',
+      lineSpacing: 6
+    }).setOrigin(0.5, 0.5).setDepth(2001)
+
+    const originalLink = this.add.text(960, 300, 'Jouez au jeu original pour la vraie expérience !', {
+      fontSize: '16px',
+      color: '#4ecdc4',
+      fontFamily: TextureKey.FontHeading,
+      align: 'center'
+    }).setOrigin(0.5, 0.5).setDepth(2001)
+
+    originalLink.setInteractive({ useHandCursor: true })
+    originalLink.on('pointerdown', () => {
+      window.open('https://challenge.anawan.io', '_blank')
+    })
+
+    originalLink.on('pointerover', () => {
+      originalLink.setColor('#6dd5ed')
+    })
+
+    originalLink.on('pointerout', () => {
+      originalLink.setColor('#4ecdc4')
+    })
+
+    const pulseTimeline = this.add.timeline([
+      {
+        at: 0,
+        tween: {
+          targets: [disclaimerTitle, disclaimerBg],
+          scaleX: 1.05,
+          scaleY: 1.05,
+          duration: 2000,
+          ease: 'Sine.easeInOut',
+          repeat: -1,
+          yoyo: true
+        }
+      }
+    ])
+
+    pulseTimeline.play()
+
+    disclaimerBg.setAlpha(0)
+    disclaimerTitle.setAlpha(0)
+    disclaimerText.setAlpha(0)
+    originalLink.setAlpha(0)
+
+    this.time.delayedCall(1000, () => {
+      this.tweens.add({
+        targets: [disclaimerBg, disclaimerTitle, disclaimerText, originalLink],
+        alpha: { from: 0, to: 1 },
+        duration: 1000,
+        ease: 'Power2',
+        onUpdate: (tween) => {
+          const progress = tween.progress
+          disclaimerBg.setAlpha(progress * 0.7)
+          disclaimerTitle.setAlpha(progress)
+          disclaimerText.setAlpha(progress)
+          originalLink.setAlpha(progress)
+        }
+      })
+    })
   }
 
   private createInfoPanel() {
