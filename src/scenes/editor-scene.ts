@@ -68,7 +68,6 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   create() {
-    console.log('✏️ EditorScene: create() appelé.')
     const { width, height } = this.scale
     this.isCustomLevelRun = this.registry.get(DataKey.IsCustomLevelRun)
 
@@ -353,8 +352,6 @@ export default class EditorScene extends Phaser.Scene {
 
     this.levelSizePanel.add([this.choiceLevelWidth, this.choiceLevelHeight])
     this.levelSizePanel.setVisible(true)
-
-    // Délai plus long pour laisser GameScene se stabiliser avant de charger la map temporaire
     this.time.delayedCall(500, () => {
       this.loadDefaultLevelIfNeeded()
     })
@@ -410,8 +407,6 @@ export default class EditorScene extends Phaser.Scene {
 
     this.gameScene.events.on(EventKey.EditorItemSelected, this.handleItemSelected, this)
     this.events.once('shutdown', this.handleShutdown, this)
-
-    // Textes "Forked by Puparia" et version dans l'éditeur
     this.add.text(1790, 1030, 'Forked by Puparia', {
       fontSize: '14px',
       color: '#ffffff',
@@ -430,9 +425,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   wake() {
-    console.log('✏️ EditorScene: wake() appelé.')
 
-    // Forcer le mode éditeur
     this.isEditing = true
     this.events.emit(EventKey.EditorToggle, true)
     this.btnToggle.toggleIcon(IconsKey.Edit)
@@ -443,8 +436,6 @@ export default class EditorScene extends Phaser.Scene {
     this.showGrid = true
     this.events.emit(EventKey.EditorToggleGrid, true)
     this.levelSizePanel.setVisible(true)
-
-    console.log('✏️ EditorScene: Mode éditeur forcé.')
     this.teleportToPlayer()
   }
 
@@ -488,8 +479,6 @@ export default class EditorScene extends Phaser.Scene {
         const base64Data = btoa(JSON.stringify(levelDataWithName))
         localStorage.setItem(`level_${newId}`, base64Data)
         localStorage.setItem('currentEditorId', newId)
-
-        console.log(`✅ Niveau sauvegardé avec l'ID: ${newId}`)
       } else {
         const levelDataWithName = {
           ...levelData,
@@ -499,11 +488,9 @@ export default class EditorScene extends Phaser.Scene {
 
         const base64Data = btoa(JSON.stringify(levelDataWithName))
         localStorage.setItem(`level_${currentEditorId}`, base64Data)
-
-        console.log(`✅ Niveau mis à jour avec l'ID: ${currentEditorId}`)
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde:', error)
+      console.error('Erreur lors de la sauvegarde:', error)
     }
   }
 
@@ -551,14 +538,10 @@ export default class EditorScene extends Phaser.Scene {
         alert('Niveau introuvable')
         return
       }
-
       localStorage.setItem('currentEditorId', levelId)
-
       this.importLevelFromBase64(base64Data)
-
-      console.log(`✅ Niveau chargé avec l'ID: ${levelId}`)
     } catch (error) {
-      console.error('❌ Erreur lors du chargement:', error)
+      console.error('Erreur lors du chargement:', error)
       alert('Erreur lors du chargement du niveau')
     }
   }
@@ -582,7 +565,7 @@ export default class EditorScene extends Phaser.Scene {
         }
       }
     } catch (error) {
-      console.error('❌ Erreur lors de l\'import:', error)
+      console.error('Erreur lors de l\'import:', error)
       alert('Erreur lors de l\'import du niveau')
     }
   }
@@ -667,7 +650,7 @@ export default class EditorScene extends Phaser.Scene {
       const isDefaultItem = this.gameScene.defaultItemsPositions.has(key)
 
       const tools = [
-        ...(isDefaultItem ? [] : [EditorTool.Delete]), // Exclure le bouton Delete pour les objets par défaut
+        ...(isDefaultItem ? [] : [EditorTool.Delete]),
         ...(EDITOR_TYPE_TOOLS[item.type] ? EDITOR_TYPE_TOOLS[item.type]! : [])
       ]
       Object.values(this.toolButtons).forEach((btn) => {
@@ -758,17 +741,14 @@ export default class EditorScene extends Phaser.Scene {
       this.events.emit(EventKey.EditorToggleGrid, true)
       this.levelSizePanel.setVisible(true)
 
-      // Reset du timer quand on revient à l'éditeur
       const gameScene = this.scene.get(SceneKey.Game) as any
       if (gameScene && gameScene.timerStarted !== undefined) {
         gameScene.timerStarted = false
-        console.log('✏️ EditorScene: Timer reset lors du retour à l\'éditeur')
       }
 
       // Charger la map temporaire si elle existe (retour depuis testPlay)
       this.time.delayedCall(100, () => {
         if (this.loadTemporaryLevelIfExists()) {
-          console.log('✏️ EditorScene: Map temporaire chargée au retour de testPlay')
         }
         this.teleportToPlayer()
       })
@@ -999,7 +979,7 @@ export default class EditorScene extends Phaser.Scene {
       const isPlatform = existingItem.type === EditorType.Platform
 
       if (canOverlapPlatforms && !isPlatform) {
-        return // Les objets spéciaux ne peuvent être placés que sur les plateformes
+        return
       }
     }
 
@@ -1026,33 +1006,29 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   loadDefaultLevelIfNeeded(): void {
-    // Ne pas charger la map temporaire pendant le testPlay
     const isCustomLevelRun = this.registry.get(DataKey.IsCustomLevelRun)
     if (isCustomLevelRun) {
-      console.log('✏️ EditorScene: Mode testPlay, pas de chargement de map temporaire')
       return
     }
 
-    // Vérifier d'abord s'il y a une map temporaire à charger
     if (this.loadTemporaryLevelIfExists()) {
-      console.log('✏️ EditorScene: Map temporaire chargée')
       return
     }
 
-    // Sinon, vérifier s'il y a un niveau sauvegardé
     const currentEditorId = localStorage.getItem('currentEditorId')
     if (currentEditorId) {
-      console.log('✏️ EditorScene: Chargement du niveau sauvegardé:', currentEditorId)
-      // Charger le niveau sauvegardé
+      const gameScene = this.scene.get(SceneKey.Game) as any
+      if (gameScene && gameScene.levelData && gameScene.levelData.name) {
+        return
+      }
+
       this.time.delayedCall(200, () => {
         this.loadSavedLevel(currentEditorId)
       })
       return
     }
 
-    // Sinon, charger le niveau par défaut
     const defaultLevel = this.getDefaultLevel()
-
     this.time.delayedCall(200, () => {
       this.registry.set('loadingDefaultLevel', true)
       this.events.emit(EventKey.EditorImport, defaultLevel)
@@ -1064,7 +1040,6 @@ export default class EditorScene extends Phaser.Scene {
       if (world && typeof world.width === 'number' && typeof world.height === 'number') {
         this.levelWidth = world.width
         this.levelHeight = world.height
-
         if (this.choiceLevelWidth && this.choiceLevelHeight) {
           this.choiceLevelWidth.value = this.levelWidth
           this.choiceLevelHeight.value = this.levelHeight
@@ -1136,19 +1111,21 @@ export default class EditorScene extends Phaser.Scene {
     try {
       const gameScene = this.scene.get(SceneKey.Game) as any
       const levelData = gameScene.levelData
+      const currentEditorId = localStorage.getItem('currentEditorId')
 
       const temporaryLevelData = {
         ...levelData,
         name: 'Map temporaire',
-        lastModified: new Date().toISOString()
+        lastModified: new Date().toISOString(),
+        originalEditorId: currentEditorId
       }
 
       const base64Data = btoa(JSON.stringify(temporaryLevelData))
       localStorage.setItem('temporary_level', base64Data)
 
-      console.log('✅ Map temporaire sauvegardée avant testPlay')
+      console.log('Map temporaire sauvegardée avant testPlay')
     } catch (error) {
-      console.warn('⚠️ Impossible de sauvegarder la map temporaire:', error)
+      console.warn('Impossible de sauvegarder la map temporaire:', error)
     }
   }
 
@@ -1157,11 +1134,8 @@ export default class EditorScene extends Phaser.Scene {
       const base64Data = localStorage.getItem(`level_${currentEditorId}`)
       if (base64Data) {
         const levelData = JSON.parse(atob(base64Data))
-        console.log('✏️ EditorScene: Chargement du niveau sauvegardé:', levelData.name)
 
         this.events.emit(EventKey.EditorImport, levelData)
-
-        // Mettre à jour les dimensions
         if (levelData.world) {
           this.levelWidth = levelData.world.width
           this.levelHeight = levelData.world.height
@@ -1173,7 +1147,7 @@ export default class EditorScene extends Phaser.Scene {
         }
       }
     } catch (error) {
-      console.error('❌ Erreur lors du chargement du niveau sauvegardé:', error)
+      console.error('Erreur lors du chargement du niveau sauvegardé:', error)
     }
   }
 
@@ -1182,41 +1156,42 @@ export default class EditorScene extends Phaser.Scene {
       const temporaryData = localStorage.getItem('temporary_level')
       if (temporaryData) {
         const levelData = JSON.parse(atob(temporaryData))
-        console.log('✏️ EditorScene: Chargement de la map temporaire:', levelData.name)
 
-        // Charger la map temporaire et forcer la recréation visuelle des objets
         const gameScene = this.scene.get(SceneKey.Game) as any
         if (gameScene && gameScene.importLevel) {
-          // Utiliser importLevel SANS restart pour éviter les problèmes
           gameScene.importLevel(levelData, false, true)
-
-          // Forcer manuellement la recréation des objets
           this.time.delayedCall(100, () => {
             if (gameScene.recreateAllObjects) {
               gameScene.recreateAllObjects()
             }
           })
         } else {
-          // Fallback : utiliser l'ancienne méthode
           this.events.emit(EventKey.EditorImport, levelData)
         }
 
-        // Supprimer la map temporaire
         localStorage.removeItem('temporary_level')
-        console.log('✅ Map temporaire chargée et supprimée')
+
+        if (levelData.originalEditorId) {
+          localStorage.setItem('currentEditorId', levelData.originalEditorId)
+        }
+
 
         return true
       }
       return false
     } catch (error) {
-      console.error('❌ Erreur lors du chargement de la map temporaire:', error)
+      console.error('Erreur lors du chargement de la map temporaire:', error)
       localStorage.removeItem('temporary_level')
       return false
     }
   }
 
   playRun() {
-    // Sauvegarder temporairement la map actuelle avant testPlay
+    const currentEditorId = localStorage.getItem('currentEditorId')
+    if (currentEditorId) {
+      this.saveLevel()
+    }
+
     this.saveTemporaryLevel()
 
     this.isEditing = false
@@ -1229,14 +1204,12 @@ export default class EditorScene extends Phaser.Scene {
 
     this.levelSizePanel.setVisible(false)
 
-
     this.registry.set(DataKey.GameMode, GameMode.EditorPlayingTest)
 
     transitionEventsEmitter.emit(EventKey.TransitionStart)
     transitionEventsEmitter.once(
       EventKey.TransitionEnd,
       () => {
-        console.log('✏️ EditorScene: Redémarrage de GameScene pour testPlay')
         this.gameScene.scene.restart({ isCustomLevelRun: true })
       },
       this
@@ -1262,7 +1235,7 @@ export default class EditorScene extends Phaser.Scene {
 
     const maxRetries = 50
     if (retryCount >= maxRetries) {
-      console.log('❌ Impossible de trouver Bobby après', maxRetries, 'tentatives')
+      console.log('Impossible de trouver Bobby après', maxRetries, 'tentatives')
       return
     }
 
@@ -1278,13 +1251,9 @@ export default class EditorScene extends Phaser.Scene {
     if (gameScene && gameScene.player && gameScene.player.x !== undefined && gameScene.player.y !== undefined) {
       const playerX = gameScene.player.x
       const playerY = gameScene.player.y
-      console.log('Position de Bobby trouvée:', { x: playerX, y: playerY })
 
       this.gameCamera.centerOn(playerX, playerY)
-      console.log('Caméra centrée sur Bobby')
     } else {
-      console.log('Bobby pas encore chargé, réessai dans 200ms')
-
       this.time.delayedCall(200, () => {
         this.teleportToPlayer(retryCount + 1)
       })
